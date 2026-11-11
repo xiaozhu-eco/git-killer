@@ -92,6 +92,16 @@ npm run test:integration
 
 Press `F5` to launch the Extension Development Host.
 
+## Releasing
+
+Publishing is automated with VS Code Marketplace Trusted Publishing and GitHub
+Actions OIDC. No long-lived Marketplace PAT is stored in the repository.
+
+- The workflow is [`.github/workflows/release.yml`](.github/workflows/release.yml).
+- It runs on `v*` tags or manually from the Actions tab.
+- The Marketplace publisher must have a Trusted Publishing policy for
+  `xiaozhu-eco/git-killer` and the `release.yml` workflow.
+
 ## Contributing
 
 Issues and pull requests are welcome at
