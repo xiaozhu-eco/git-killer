@@ -1,0 +1,331 @@
+{
+    "name": "git-killer",
+    "displayName": "Git Killer",
+    "description": "A commit-graph-centric Git client: browse, compare, blame and operate on Git from one graph.",
+    "version": "0.1.0",
+    "publisher": "xiaozhu",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/xiaozhu-eco/git-killer.git"
+    },
+    "bugs": {
+        "url": "https://github.com/xiaozhu-eco/git-killer/issues"
+    },
+    "homepage": "https://github.com/xiaozhu-eco/git-killer#readme",
+    "engines": {
+        "vscode": "^1.90.0"
+    },
+    "categories": [
+        "SCM Providers",
+        "Visualization",
+        "Other"
+    ],
+    "keywords": [
+        "git",
+        "graph",
+        "commit",
+        "blame",
+        "scm"
+    ],
+    "main": "./dist/extension.js",
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "gitKiller",
+                    "title": "Git Killer",
+                    "icon": "media/graph.svg"
+                }
+            ]
+        },
+        "views": {
+            "gitKiller": [
+                {
+                    "type": "webview",
+                    "id": "gitKiller.sidebar",
+                    "name": "Repository"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "gitKiller.showGraph",
+                "title": "Show Commit Graph",
+                "category": "Git Killer",
+                "icon": "$(git-commit)"
+            },
+            {
+                "command": "gitKiller.refresh",
+                "title": "Refresh",
+                "category": "Git Killer",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "gitKiller.switchBranch",
+                "title": "Switch Branch...",
+                "category": "Git Killer",
+                "icon": "$(git-branch)"
+            },
+            {
+                "command": "gitKiller.createBranch",
+                "title": "Create Branch...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.deleteBranch",
+                "title": "Delete Branch...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.compareRefs",
+                "title": "Compare Refs...",
+                "category": "Git Killer",
+                "icon": "$(diff)"
+            },
+            {
+                "command": "gitKiller.openCommit",
+                "title": "Open Commit...",
+                "category": "Git Killer",
+                "icon": "$(git-commit)"
+            },
+            {
+                "command": "gitKiller.toggleBlame",
+                "title": "Toggle Inline Blame",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.fileHistory",
+                "title": "Show File History",
+                "category": "Git Killer",
+                "icon": "$(history)"
+            },
+            {
+                "command": "gitKiller.lineHistory",
+                "title": "Show Line History",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.fetch",
+                "title": "Fetch",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.pull",
+                "title": "Pull",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.push",
+                "title": "Push",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.commit",
+                "title": "Commit...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.merge",
+                "title": "Merge Branch...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.rebase",
+                "title": "Rebase onto Branch...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.interactiveRebase",
+                "title": "Interactive Rebase...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.cherryPick",
+                "title": "Cherry-pick Commit...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.revert",
+                "title": "Revert Commit...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.reset",
+                "title": "Reset...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.stashPush",
+                "title": "Stash Changes",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.stashPop",
+                "title": "Pop Stash",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.continueOperation",
+                "title": "Continue In-Progress Operation",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.abortOperation",
+                "title": "Abort In-Progress Operation",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.copySha",
+                "title": "Copy Commit SHA",
+                "category": "Git Killer"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "gitKiller.showGraph",
+                    "when": "view == gitKiller.sidebar",
+                    "group": "navigation@1"
+                }
+            ],
+            "scm/title": [
+                {
+                    "command": "gitKiller.showGraph",
+                    "when": "scmProvider == git",
+                    "group": "navigation@1"
+                }
+            ],
+            "editor/context": [
+                {
+                    "command": "gitKiller.fileHistory",
+                    "when": "resourceScheme == file",
+                    "group": "gitKiller@1"
+                },
+                {
+                    "command": "gitKiller.lineHistory",
+                    "when": "resourceScheme == file",
+                    "group": "gitKiller@2"
+                },
+                {
+                    "command": "gitKiller.toggleBlame",
+                    "when": "resourceScheme == file",
+                    "group": "gitKiller@3"
+                }
+            ],
+            "editor/title/context": [
+                {
+                    "command": "gitKiller.fileHistory",
+                    "when": "resourceScheme == file",
+                    "group": "gitKiller@1"
+                }
+            ]
+        },
+        "keybindings": [
+            {
+                "command": "gitKiller.showGraph",
+                "key": "ctrl+alt+g",
+                "mac": "cmd+alt+g"
+            },
+            {
+                "command": "gitKiller.switchBranch",
+                "key": "ctrl+alt+b",
+                "mac": "cmd+alt+b"
+            },
+            {
+                "command": "gitKiller.toggleBlame",
+                "key": "ctrl+alt+shift+b",
+                "mac": "cmd+alt+shift+b"
+            }
+        ],
+        "configuration": {
+            "title": "Git Killer",
+            "properties": {
+                "gitKiller.gitPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to the git executable. Leave empty to use `git` from PATH."
+                },
+                "gitKiller.maxCommits": {
+                    "type": "number",
+                    "default": 500,
+                    "minimum": 100,
+                    "description": "Number of commits loaded per page in the commit graph."
+                },
+                "gitKiller.autoRefresh": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically refresh the graph when the repository changes."
+                },
+                "gitKiller.confirmDestructive": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Ask for confirmation before destructive operations (reset, delete branch, discard)."
+                },
+                "gitKiller.graph.rowHeight": {
+                    "type": "number",
+                    "default": 24,
+                    "minimum": 18,
+                    "maximum": 40,
+                    "description": "Row height of the commit graph in pixels."
+                },
+                "gitKiller.graph.laneWidth": {
+                    "type": "number",
+                    "default": 14,
+                    "minimum": 8,
+                    "maximum": 30,
+                    "description": "Width of a graph lane in pixels."
+                },
+                "gitKiller.graph.showRemoteBranches": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show remote branches in the commit graph."
+                },
+                "gitKiller.graph.showTags": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show tags in the commit graph."
+                },
+                "gitKiller.blame.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show inline blame annotation for the current line."
+                },
+                "gitKiller.blame.hover": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show commit details when hovering over a line."
+                },
+                "gitKiller.blame.statusBar": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show blame information in the status bar."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "compile": "node esbuild.mjs",
+        "watch": "node esbuild.mjs --watch",
+        "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.webview.json --noEmit",
+        "test:unit": "vitest run",
+        "test:integration": "node esbuild.integration.mjs && node test/integration/run.mjs",
+        "build:prod": "node esbuild.mjs --production",
+        "package": "npm run build:prod && npx --yes @vscode/vsce package --no-dependencies"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "@types/react": "^18.3.18",
+        "@types/react-dom": "^18.3.5",
+        "@types/vscode": "^1.90.0",
+        "@vscode/test-electron": "^2.4.1",
+        "esbuild": "^0.24.2",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "typescript": "^5.7.2",
+        "vitest": "^2.1.8"
+    }
+}
