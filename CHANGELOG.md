@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Add a dedicated Marketplace icon.
+- Publish through GitHub Actions OIDC Trusted Publishing.
+- Publish under the `xiaozhu-studio` publisher.
+
 ## 0.1.0
 
 - Initial commit graph, commit details, compare, diffs, blame, file/line history.
