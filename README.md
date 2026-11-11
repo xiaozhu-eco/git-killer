@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/xiaozhu-eco/git-killer/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaozhu-eco/git-killer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/xiaozhu.git-killer?label=marketplace)](https://marketplace.visualstudio.com/items?itemName=xiaozhu.git-killer)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/xiaozhu-studio.git-killer?label=marketplace)](https://marketplace.visualstudio.com/items?itemName=xiaozhu-studio.git-killer)
 
 A commit-graph-centric Git client for VS Code. Browse, compare, blame and operate on Git from one graph.
 
@@ -11,7 +11,7 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
 - **VS Code Marketplace**: search for **Git Killer** or run:
 
   ```sh
-  code --install-extension xiaozhu.git-killer
+  code --install-extension xiaozhu-studio.git-killer
   ```
 
 - **From source**: `npm install && npm run compile`, then press `F5` to launch the Extension Development Host, or install the packaged `.vsix` with `code --install-extension git-killer-0.1.0.vsix`.

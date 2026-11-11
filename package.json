@@ -3,7 +3,7 @@
     "displayName": "Git Killer",
     "description": "A commit-graph-centric Git client: browse, compare, blame and operate on Git from one graph.",
     "version": "0.1.0",
-    "publisher": "xiaozhu",
+    "publisher": "xiaozhu-studio",
     "license": "MIT",
     "repository": {
         "type": "git",
