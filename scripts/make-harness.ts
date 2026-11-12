@@ -202,8 +202,8 @@ const html = `<!DOCTYPE html>
         window.postMessage({ type: 'toast', kind: 'info', message: 'loadMore' }, '*');
       }
     },
-    getState() { return undefined; },
-    setState() {},
+    getState() { return window.__vscodeState; },
+    setState(value) { window.__vscodeState = value; },
   });
 </script>
 <script src="../dist/webview.js"></script>

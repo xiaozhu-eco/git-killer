@@ -1,6 +1,16 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+    type PointerEvent as ReactPointerEvent,
+} from 'react';
 import type { GraphRow, RefSummary } from '../../../src/protocol';
 import { formatDate, relativeTime, shortSha } from '../format';
+import { vscode } from '../vscodeApi';
 
 interface GraphListProps {
     rows: GraphRow[];
@@ -30,6 +40,39 @@ const FALLBACK_PALETTE = [
     '#9ab3ff',
     '#c3e88d',
 ];
+
+type ColumnKey = 'refs' | 'author' | 'date' | 'sha';
+type ColumnWidths = Record<ColumnKey, number>;
+
+const DEFAULT_COLUMNS: ColumnWidths = { refs: 260, author: 150, date: 110, sha: 78 };
+const MIN_COLUMNS: ColumnWidths = { refs: 90, author: 60, date: 64, sha: 48 };
+const MAX_COLUMNS: ColumnWidths = { refs: 720, author: 320, date: 260, sha: 160 };
+
+interface GraphViewState {
+    columns?: Partial<ColumnWidths>;
+}
+
+function clampWidth(key: ColumnKey, value: number): number {
+    if (!Number.isFinite(value)) {
+        return DEFAULT_COLUMNS[key];
+    }
+    return Math.max(MIN_COLUMNS[key], Math.min(MAX_COLUMNS[key], Math.round(value)));
+}
+
+function readColumns(): ColumnWidths {
+    const saved = vscode.getState<GraphViewState>()?.columns;
+    return {
+        refs: clampWidth('refs', saved?.refs ?? DEFAULT_COLUMNS.refs),
+        author: clampWidth('author', saved?.author ?? DEFAULT_COLUMNS.author),
+        date: clampWidth('date', saved?.date ?? DEFAULT_COLUMNS.date),
+        sha: clampWidth('sha', saved?.sha ?? DEFAULT_COLUMNS.sha),
+    };
+}
+
+function saveColumns(columns: ColumnWidths): void {
+    const current = vscode.getState<GraphViewState>() ?? {};
+    vscode.setState({ ...current, columns });
+}
 
 /**
  * Hover text for a row: commit info plus every branch/tag pointing at it, so a commit that
@@ -66,8 +109,88 @@ export function GraphList(props: GraphListProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const windowStart = useRef(0);
     const [scrollTop, setScrollTop] = useState(0);
-    const [viewport, setViewport] = useState({ width: 0, height: 0 });
+    const [viewport, setViewport] = useState({ width: 0, height: 0, scrollbar: 0 });
     const [palette] = useState(readPalette);
+    const [columns, setColumns] = useState<ColumnWidths>(readColumns);
+
+    useEffect(() => {
+        saveColumns(columns);
+    }, [columns]);
+
+    const resizeRef = useRef<{ key: ColumnKey; startX: number; startWidth: number } | null>(null);
+
+    const nudgeColumn = useCallback((key: ColumnKey, delta: number) => {
+        setColumns(previous => {
+            const next = clampWidth(key, previous[key] + delta);
+            return next === previous[key] ? previous : { ...previous, [key]: next };
+        });
+    }, []);
+
+    const beginResize = useCallback(
+        (key: ColumnKey) => (event: ReactPointerEvent<HTMLSpanElement>) => {
+            if (event.button !== 0) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            const startX = event.clientX;
+            const startWidth = columns[key];
+            resizeRef.current = { key, startX, startWidth };
+            document.body.classList.add('col-resizing');
+
+            const onMove = (moveEvent: PointerEvent) => {
+                const drag = resizeRef.current;
+                if (!drag || drag.key !== key) {
+                    return;
+                }
+                const next = clampWidth(key, drag.startWidth + moveEvent.clientX - drag.startX);
+                setColumns(previous => (previous[key] === next ? previous : { ...previous, [key]: next }));
+            };
+            const stop = () => {
+                resizeRef.current = null;
+                document.body.classList.remove('col-resizing');
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', stop);
+                window.removeEventListener('pointercancel', stop);
+            };
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', stop);
+            window.addEventListener('pointercancel', stop);
+        },
+        [columns]
+    );
+
+    const resetColumn = useCallback((key: ColumnKey) => {
+        setColumns(previous => ({ ...previous, [key]: DEFAULT_COLUMNS[key] }));
+    }, []);
+
+    const headerCell = useCallback(
+        (key: ColumnKey, label: string) => (
+            <span className="header-cell">
+                <span className="header-label">{label}</span>
+                <span
+                    className="col-resizer"
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={`Resize ${label} column`}
+                    tabIndex={0}
+                    title="Drag to resize · double-click to reset"
+                    onPointerDown={beginResize(key)}
+                    onDoubleClick={() => resetColumn(key)}
+                    onKeyDown={event => {
+                        if (event.key === 'ArrowLeft') {
+                            event.preventDefault();
+                            nudgeColumn(key, event.shiftKey ? -24 : -8);
+                        } else if (event.key === 'ArrowRight') {
+                            event.preventDefault();
+                            nudgeColumn(key, event.shiftKey ? 24 : 8);
+                        }
+                    }}
+                />
+            </span>
+        ),
+        [beginResize, nudgeColumn, resetColumn]
+    );
 
     const selectedSet = useMemo(() => new Set(selected), [selected]);
 
@@ -152,11 +275,17 @@ export function GraphList(props: GraphListProps) {
         if (!element) {
             return;
         }
-        const observer = new ResizeObserver(() => {
-            setViewport({ width: element.clientWidth, height: element.clientHeight });
-        });
+        const measure = () => {
+            const scroller = scrollerRef.current;
+            setViewport({
+                width: element.clientWidth,
+                height: scroller?.clientHeight ?? element.clientHeight,
+                scrollbar: scroller ? Math.max(0, scroller.offsetWidth - scroller.clientWidth) : 0,
+            });
+        };
+        const observer = new ResizeObserver(measure);
         observer.observe(element);
-        setViewport({ width: element.clientWidth, height: element.clientHeight });
+        measure();
         return () => observer.disconnect();
     }, []);
 
@@ -169,7 +298,7 @@ export function GraphList(props: GraphListProps) {
             }
             const dpr = window.devicePixelRatio || 1;
             const width = graphWidth;
-            const height = Math.max(1, wrap.clientHeight);
+            const height = Math.max(1, scrollerRef.current?.clientHeight ?? wrap.clientHeight);
             const pixelWidth = Math.floor(width * dpr);
             const pixelHeight = Math.floor(height * dpr);
             if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
@@ -280,9 +409,29 @@ export function GraphList(props: GraphListProps) {
     const end = Math.min(rows.length, indexAt(scrollTop + visibleHeight) + 4);
     const visible = rows.slice(start, end);
     const totalHeight = offsets[rows.length] + (hasMore ? 44 : 0);
+    const columnStyle = {
+        '--col-refs': `${columns.refs}px`,
+        '--col-author': `${columns.author}px`,
+        '--col-date': `${columns.date}px`,
+        '--col-sha': `${columns.sha}px`,
+    } as CSSProperties;
 
     return (
-        <div className="graph-wrap" ref={wrapRef}>
+        <div className="graph-wrap" ref={wrapRef} style={columnStyle}>
+            <div className="graph-header">
+                <div
+                    className="header-inner"
+                    style={{ paddingLeft: graphWidth + 10, paddingRight: 10 + viewport.scrollbar }}
+                >
+                    {headerCell('refs', 'Refs')}
+                    <span className="header-cell">
+                        <span className="header-label">Description</span>
+                    </span>
+                    {headerCell('author', 'Author')}
+                    {headerCell('date', 'Date')}
+                    {headerCell('sha', 'SHA')}
+                </div>
+            </div>
             <canvas className="lanes" ref={canvasRef} />
             <div className="scroller" ref={scrollerRef} onScroll={handleScroll}>
                 <div className="spacer" style={{ height: totalHeight }}>
@@ -336,8 +485,11 @@ export function GraphList(props: GraphListProps) {
                                         )}
                                     </span>
                                     <span className="subject">{row.subject}</span>
-                                    <span className="author">
-                                        {row.author} · {relativeTime(row.authorTime)}
+                                    <span className="author" title={row.author}>
+                                        {row.author}
+                                    </span>
+                                    <span className="date" title={formatDate(row.authorTime)}>
+                                        {relativeTime(row.authorTime)}
                                     </span>
                                     <span className="sha">{shortSha(row.sha)}</span>
                                 </div>

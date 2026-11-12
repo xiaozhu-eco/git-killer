@@ -28,6 +28,8 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
   copy its name (or the full ref name)
 - Toolbar button jumps straight to the commit the current branch points at
 - Virtual scrolling, search by message, all-branches / current-branch scope, load more
+- Aligned column header (Refs / Description / Author / Date / SHA); drag a header divider to
+  resize a column, double-click to reset, arrow keys adjust the focused divider
 - Repo switcher, commit details pane with changed files and per-file diffs
 - Contextual details pane: current branch, upstream, HEAD, working-tree counts,
   per-action descriptions and the exact git command each action will run

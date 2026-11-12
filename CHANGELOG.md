@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- The commit list now has a sticky column header (Refs, Description, Author, Date, SHA) and
+  every row shares the same grid, so columns line up regardless of the refs on each commit.
+- Author and relative date are now separate columns.
+- Drag a header divider to resize a column, double-click it to reset, or focus it and use
+  the arrow keys (Shift for larger steps). Widths persist across webview reloads.
+
 ## 0.3.1
 
 - Fix the repository panel being restored into the Explorer container: the view now uses a

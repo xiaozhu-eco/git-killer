@@ -203,7 +203,7 @@ select:focus {
 
 .lanes {
     position: absolute;
-    top: 0;
+    top: 26px;
     left: 0;
     z-index: 1;
     pointer-events: none;
@@ -211,10 +211,93 @@ select:focus {
 
 .scroller {
     position: absolute;
-    inset: 0;
+    top: 26px;
+    left: 0;
+    right: 0;
+    bottom: 0;
     overflow-y: auto;
     overflow-x: hidden;
     z-index: 0;
+}
+
+/* Column header: shares the row grid so every column lines up. */
+.graph-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    height: 26px;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.22));
+    background: var(--vscode-editor-background);
+}
+
+.header-inner {
+    display: grid;
+    grid-template-columns:
+        minmax(0, var(--col-refs, 260px))
+        minmax(0, 1fr)
+        minmax(0, var(--col-author, 150px))
+        minmax(0, var(--col-date, 110px))
+        minmax(0, var(--col-sha, 78px));
+    column-gap: 10px;
+    align-items: center;
+    height: 100%;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+}
+
+.header-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    height: 100%;
+}
+
+.header-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.col-resizer {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    right: -6px;
+    width: 10px;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.col-resizer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 4px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--vscode-widget-border, rgba(128, 128, 128, 0.28));
+}
+
+.col-resizer:hover::after,
+.col-resizer:focus-visible::after,
+body.col-resizing .col-resizer::after {
+    background: var(--vscode-focusBorder, #007fd4);
+}
+
+body.col-resizing {
+    cursor: col-resize;
+}
+
+body.col-resizing .row,
+body.col-resizing .header-inner {
+    user-select: none;
 }
 
 .spacer {
@@ -235,9 +318,15 @@ select:focus {
 }
 
 .row-inner {
-    display: flex;
+    display: grid;
+    grid-template-columns:
+        minmax(0, var(--col-refs, 260px))
+        minmax(0, 1fr)
+        minmax(0, var(--col-author, 150px))
+        minmax(0, var(--col-date, 110px))
+        minmax(0, var(--col-sha, 78px));
+    column-gap: 10px;
     align-items: center;
-    gap: 6px;
     flex: 1 1 auto;
     min-width: 0;
     padding-right: 10px;
@@ -250,7 +339,6 @@ select:focus {
     flex-wrap: wrap;
     align-items: center;
     gap: 3px 5px;
-    flex: 0 1 52%;
     min-width: 0;
     padding: 2px 0;
 }
@@ -265,13 +353,13 @@ select:focus {
 }
 
 .row.selected .author,
+.row.selected .date,
 .row.selected .sha {
     color: var(--vscode-list-activeSelectionForeground);
     opacity: 0.8;
 }
 
 .subject {
-    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -279,7 +367,6 @@ select:focus {
 }
 
 .author {
-    flex: 0 1 220px;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -288,8 +375,21 @@ select:focus {
     font-size: 11.5px;
 }
 
+.date {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--vscode-descriptionForeground);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+}
+
 .sha {
-    flex: 0 0 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-family: var(--vscode-editor-font-family, monospace);
     font-size: 11px;
     color: var(--vscode-descriptionForeground);
@@ -360,10 +460,6 @@ select:focus {
     .details {
         flex-basis: 270px;
         width: 270px;
-    }
-
-    .author {
-        display: none;
     }
 }
 
