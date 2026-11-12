@@ -14,7 +14,7 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
   code --install-extension xiaozhu-studio.git-killer
   ```
 
-- **From source**: `npm install && npm run compile`, then press `F5` to launch the Extension Development Host, or install the packaged `.vsix` with `code --install-extension git-killer-0.3.0.vsix`.
+- **From source**: `npm install && npm run compile`, then press `F5` to launch the Extension Development Host, or install the packaged `.vsix` with `code --install-extension git-killer-0.3.1.vsix`.
 
 ## Features
 

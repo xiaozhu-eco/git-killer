@@ -4,7 +4,7 @@ import type { SidebarState, WebviewToHost } from '../protocol';
 import { getWebviewHtml } from '../graph/webviewHtml';
 
 export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
-    static readonly viewType = 'gitKiller.sidebar';
+    static readonly viewType = 'gitKiller.repository';
 
     private view?: vscode.WebviewView;
     private readonly disposables: vscode.Disposable[] = [];

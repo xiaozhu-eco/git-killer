@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- Fix the repository panel being restored into the Explorer container: the view now uses a
+  fresh id (`gitKiller.repository`) and declares its icon/contextual title, so it lands in the
+  built-in Source Control container instead of a previously dragged position.
+
 ## 0.3.0
 
 - The repository panel now lives in the built-in **Source Control** view container instead of

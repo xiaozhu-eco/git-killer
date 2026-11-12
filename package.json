@@ -2,7 +2,7 @@
     "name": "git-killer",
     "displayName": "Git Killer",
     "description": "A commit-graph-centric Git client: browse, compare, blame and operate on Git from one graph.",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "publisher": "xiaozhu-studio",
     "license": "MIT",
     "icon": "media/icon.png",
@@ -38,8 +38,10 @@
             "scm": [
                 {
                     "type": "webview",
-                    "id": "gitKiller.sidebar",
-                    "name": "Git Killer"
+                    "id": "gitKiller.repository",
+                    "name": "Git Killer",
+                    "icon": "media/graph.svg",
+                    "contextualTitle": "Git Killer"
                 }
             ]
         },
@@ -216,7 +218,7 @@
             "view/title": [
                 {
                     "command": "gitKiller.showGraph",
-                    "when": "view == gitKiller.sidebar",
+                    "when": "view == gitKiller.repository",
                     "group": "navigation@1"
                 }
             ],
