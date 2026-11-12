@@ -2,7 +2,7 @@
     "name": "git-killer",
     "displayName": "Git Killer",
     "description": "A commit-graph-centric Git client: browse, compare, blame and operate on Git from one graph.",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "publisher": "xiaozhu-studio",
     "license": "MIT",
     "icon": "media/icon.png",
@@ -252,8 +252,8 @@
                 },
                 "gitKiller.maxCommits": {
                     "type": "number",
-                    "default": 500,
-                    "minimum": 100,
+                    "default": 100,
+                    "minimum": 20,
                     "description": "Number of commits loaded per page in the commit graph."
                 },
                 "gitKiller.autoRefresh": {

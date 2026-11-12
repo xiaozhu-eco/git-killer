@@ -56,6 +56,16 @@ export function IconRefresh(props: IconProps) {
     );
 }
 
+export function IconTarget(props: IconProps) {
+    return (
+        <svg {...base} {...props}>
+            <circle cx="8" cy="8" r="4.1" />
+            <circle cx="8" cy="8" r="1.1" />
+            <path d="M8 1.8v2.1M8 12.1v2.1M1.8 8h2.1M12.1 8h2.1" />
+        </svg>
+    );
+}
+
 export function IconChevron(props: IconProps) {
     return (
         <svg {...base} {...props}>

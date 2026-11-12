@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { GraphRow } from '../../../src/protocol';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { GraphRow, RefSummary } from '../../../src/protocol';
 import { formatDate, relativeTime, shortSha } from '../format';
 
 interface GraphListProps {
@@ -8,10 +8,15 @@ interface GraphListProps {
     laneWidth: number;
     selected: string[];
     hasMore: boolean;
+    jumpTo?: { sha: string; nonce: number };
     onSelect: (sha: string, additive: boolean) => void;
     onContextMenu: (sha: string, x: number, y: number) => void;
+    onRefContextMenu: (ref: RefSummary, x: number, y: number) => void;
     onLoadMore: () => void;
 }
+
+const MAX_GRAPH_WIDTH = 320;
+const MIN_LANE_GAP = 4;
 
 const FALLBACK_PALETTE = [
     '#4f9cf9',
@@ -25,6 +30,18 @@ const FALLBACK_PALETTE = [
     '#9ab3ff',
     '#c3e88d',
 ];
+
+/**
+ * Hover text for a row: commit info plus every branch/tag pointing at it, so a commit that
+ * carries several refs can be inspected without expanding the row.
+ */
+function rowTooltip(row: GraphRow): string {
+    const lines = [row.subject, `${row.author} · ${formatDate(row.authorTime)}`, row.sha];
+    if (row.refs.length > 0) {
+        lines.push(...row.refs.map(ref => `${ref.type}: ${ref.shortName}`));
+    }
+    return lines.join('\n');
+}
 
 function readPalette(): string[] {
     const styles = getComputedStyle(document.body);
@@ -47,7 +64,7 @@ export function GraphList(props: GraphListProps) {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const wrapRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const rafRef = useRef<number>();
+    const windowStart = useRef(0);
     const [scrollTop, setScrollTop] = useState(0);
     const [viewport, setViewport] = useState({ width: 0, height: 0 });
     const [palette] = useState(readPalette);
@@ -62,7 +79,73 @@ export function GraphList(props: GraphListProps) {
         return max;
     }, [rows]);
 
-    const graphWidth = Math.min(320, Math.max(56, (maxLanes + 1) * laneWidth + 12));
+    // Shrink the lane gap instead of clipping when a repo has many active branches.
+    const laneGap = useMemo(() => {
+        const fit = (MAX_GRAPH_WIDTH - 12) / Math.max(1, maxLanes + 1);
+        return Math.max(MIN_LANE_GAP, Math.min(laneWidth, fit));
+    }, [laneWidth, maxLanes]);
+
+    const graphWidth = useMemo(
+        () => Math.max(56, Math.min(MAX_GRAPH_WIDTH, Math.round((maxLanes + 1) * laneGap + 12))),
+        [laneGap, maxLanes]
+    );
+
+    // Long branch/tag chips wrap, so rows can be taller than `rowHeight`; heights are measured
+    // once per row and turned into offsets that keep the lanes, the rows and the scrollbar in sync.
+    const rowHeights = useRef(new Map<string, number>());
+    const [measureTick, setMeasureTick] = useState(0);
+
+    const offsets = useMemo(() => {
+        const result = new Array<number>(rows.length + 1);
+        result[0] = 0;
+        for (let index = 0; index < rows.length; index += 1) {
+            const height = rowHeights.current.get(rows[index].sha) ?? rowHeight;
+            result[index + 1] = result[index] + height;
+        }
+        return result;
+    }, [rows, rowHeight, measureTick]);
+
+    // Measure mounted rows before paint so wrapped rows never overlap or drift from the lanes.
+    useLayoutEffect(() => {
+        const container = wrapRef.current;
+        if (!container) {
+            return;
+        }
+        let changed = false;
+        for (const element of container.querySelectorAll<HTMLElement>('.row')) {
+            const sha = element.dataset.sha;
+            if (!sha) {
+                continue;
+            }
+            const height = element.offsetHeight;
+            const known = rowHeights.current.get(sha);
+            if (known === undefined || Math.abs(known - height) >= 0.5) {
+                rowHeights.current.set(sha, height);
+                changed = true;
+            }
+        }
+        if (changed) {
+            setMeasureTick(tick => tick + 1);
+        }
+    });
+
+    /** Index of the row that contains the given scroll offset. */
+    const indexAt = useCallback(
+        (value: number): number => {
+            let low = 0;
+            let high = Math.max(0, rows.length - 1);
+            while (low < high) {
+                const mid = Math.ceil((low + high) / 2);
+                if (offsets[mid] <= value) {
+                    low = mid;
+                } else {
+                    high = mid - 1;
+                }
+            }
+            return low;
+        },
+        [offsets, rows.length]
+    );
 
     useEffect(() => {
         const element = wrapRef.current;
@@ -77,94 +160,126 @@ export function GraphList(props: GraphListProps) {
         return () => observer.disconnect();
     }, []);
 
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) {
-            return;
-        }
-        const dpr = window.devicePixelRatio || 1;
-        const width = graphWidth;
-        const height = Math.max(1, viewport.height);
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
+    const drawCanvas = useCallback(
+        (top: number) => {
+            const canvas = canvasRef.current;
+            const wrap = wrapRef.current;
+            if (!canvas || !wrap) {
+                return;
+            }
+            const dpr = window.devicePixelRatio || 1;
+            const width = graphWidth;
+            const height = Math.max(1, wrap.clientHeight);
+            const pixelWidth = Math.floor(width * dpr);
+            const pixelHeight = Math.floor(height * dpr);
+            if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+                canvas.width = pixelWidth;
+                canvas.height = pixelHeight;
+            }
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
 
-        const context = canvas.getContext('2d');
-        if (!context) {
-            return;
-        }
-        context.setTransform(dpr, 0, 0, dpr, 0, 0);
-        context.clearRect(0, 0, width, height);
+            const context = canvas.getContext('2d');
+            if (!context) {
+                return;
+            }
+            context.setTransform(dpr, 0, 0, dpr, 0, 0);
+            context.clearRect(0, 0, width, height);
+            context.lineCap = 'round';
 
-        const background = getComputedStyle(document.body).backgroundColor;
-        const start = Math.max(0, Math.floor(scrollTop / rowHeight) - 2);
-        const end = Math.min(rows.length, start + Math.ceil(height / rowHeight) + 4);
-        const pad = 6 + laneWidth / 2;
+            const background =
+                getComputedStyle(wrap).backgroundColor || getComputedStyle(document.body).backgroundColor;
+            const start = Math.max(0, indexAt(top) - 2);
+            const end = Math.min(rows.length, indexAt(top + height) + 2);
+            const pad = 6 + laneGap / 2;
 
-        for (let index = start; index < end; index += 1) {
-            const row = rows[index];
-            const yTop = index * rowHeight - scrollTop;
-            const yMid = yTop + rowHeight / 2;
+            for (let index = start; index < end; index += 1) {
+                const row = rows[index];
+                const yTop = offsets[index] - top;
+                const rowH = offsets[index + 1] - offsets[index];
+                const yBottom = yTop + rowH;
+                const yMid = yTop + rowH / 2;
 
-            for (const edge of row.edges) {
-                const x1 = pad + edge.from * laneWidth;
-                const x2 = pad + edge.to * laneWidth;
-                context.strokeStyle = palette[edge.color % palette.length];
-                context.lineWidth = 2;
-                context.beginPath();
-                if (edge.from === edge.to) {
-                    context.moveTo(x1, yTop - 1);
-                    context.lineTo(x1, yTop + rowHeight + 1);
-                } else {
-                    const midY = yTop + rowHeight / 2;
-                    context.moveTo(x1, yTop - 1);
-                    context.bezierCurveTo(x1, midY, x2, midY, x2, yTop + rowHeight + 1);
+                // Segments are anchored: they start at the row top or at the dot, and end at the
+                // row bottom or at the dot, so consecutive rows join without gaps or overshoot.
+                for (const edge of row.edges) {
+                    const x1 = pad + edge.from * laneGap;
+                    const x2 = pad + edge.to * laneGap;
+                    const startY = edge.fromAnchor === 'dot' ? yMid : yTop;
+                    const endY = edge.toAnchor === 'dot' ? yMid : yBottom;
+                    context.strokeStyle = palette[edge.color % palette.length];
+                    context.lineWidth = 2;
+                    context.beginPath();
+                    context.moveTo(x1, startY);
+                    if (x1 === x2) {
+                        context.lineTo(x2, endY);
+                    } else {
+                        const midY = (startY + endY) / 2;
+                        context.bezierCurveTo(x1, midY, x2, midY, x2, endY);
+                    }
+                    context.stroke();
                 }
-                context.stroke();
-            }
 
-            const x = pad + row.lane * laneWidth;
-            const color = palette[row.color % palette.length];
-            const isSelected = selectedSet.has(row.sha);
-            context.beginPath();
-            context.arc(x, yMid, isSelected ? 5 : 3.6, 0, Math.PI * 2);
-            if (row.parents.length > 1) {
-                context.fillStyle = background;
-                context.fill();
-                context.lineWidth = 2;
-                context.strokeStyle = color;
-                context.stroke();
-            } else {
-                context.fillStyle = color;
-                context.fill();
+                const x = pad + row.lane * laneGap;
+                const color = palette[row.color % palette.length];
+                const isSelected = selectedSet.has(row.sha);
+                context.beginPath();
+                context.arc(x, yMid, isSelected ? 5 : 3.6, 0, Math.PI * 2);
+                if (row.parents.length > 1) {
+                    context.fillStyle = background;
+                    context.fill();
+                    context.lineWidth = 2;
+                    context.strokeStyle = color;
+                    context.stroke();
+                } else {
+                    context.fillStyle = color;
+                    context.fill();
+                }
             }
+        },
+        [rows, graphWidth, laneGap, selectedSet, palette, offsets, indexAt]
+    );
+
+    useLayoutEffect(() => {
+        drawCanvas(scrollerRef.current?.scrollTop ?? scrollTop);
+    }, [drawCanvas, scrollTop, viewport]);
+
+    const handledJump = useRef(-1);
+    useEffect(() => {
+        const jump = props.jumpTo;
+        const scroller = scrollerRef.current;
+        if (!jump || !scroller || jump.nonce === handledJump.current) {
+            return;
         }
-    }, [rows, scrollTop, viewport, graphWidth, rowHeight, laneWidth, selectedSet, palette]);
+        handledJump.current = jump.nonce;
+        const index = rows.findIndex(row => row.sha === jump.sha);
+        if (index < 0) {
+            return;
+        }
+        const top = Math.max(0, offsets[index] - Math.round(scroller.clientHeight / 2) + rowHeight / 2);
+        scroller.scrollTop = top;
+        windowStart.current = Math.max(0, indexAt(top) - 3);
+        setScrollTop(top);
+        drawCanvas(top);
+    }, [props.jumpTo, rows, offsets, rowHeight, drawCanvas, indexAt]);
 
     const handleScroll = () => {
-        if (rafRef.current !== undefined) {
-            return;
+        const top = scrollerRef.current?.scrollTop ?? 0;
+        // Redraw right away so the lanes never lag behind the commit text.
+        drawCanvas(top);
+        // Re-render only when the virtual window actually moves; rows scroll natively either way.
+        const nextStart = Math.max(0, indexAt(top) - 3);
+        if (nextStart !== windowStart.current) {
+            windowStart.current = nextStart;
+            setScrollTop(top);
         }
-        rafRef.current = requestAnimationFrame(() => {
-            rafRef.current = undefined;
-            setScrollTop(scrollerRef.current?.scrollTop ?? 0);
-        });
     };
 
-    useEffect(() => {
-        return () => {
-            if (rafRef.current !== undefined) {
-                cancelAnimationFrame(rafRef.current);
-            }
-        };
-    }, []);
-
     const visibleHeight = viewport.height || 600;
-    const start = Math.max(0, Math.floor(scrollTop / rowHeight) - 3);
-    const end = Math.min(rows.length, start + Math.ceil(visibleHeight / rowHeight) + 8);
+    const start = Math.max(0, indexAt(scrollTop) - 3);
+    const end = Math.min(rows.length, indexAt(scrollTop + visibleHeight) + 4);
     const visible = rows.slice(start, end);
-    const totalHeight = rows.length * rowHeight + (hasMore ? 44 : 0);
+    const totalHeight = offsets[rows.length] + (hasMore ? 44 : 0);
 
     return (
         <div className="graph-wrap" ref={wrapRef}>
@@ -176,9 +291,10 @@ export function GraphList(props: GraphListProps) {
                         return (
                             <div
                                 key={row.sha}
+                                data-sha={row.sha}
                                 className={`row ${selectedSet.has(row.sha) ? 'selected' : ''}`}
-                                style={{ top: index * rowHeight, height: rowHeight }}
-                                title={`${row.subject}\n${row.author} · ${formatDate(row.authorTime)}\n${row.sha}`}
+                                style={{ top: offsets[index], minHeight: rowHeight }}
+                                title={rowTooltip(row)}
                                 onMouseDown={event => {
                                     if (event.button !== 0) {
                                         return;
@@ -194,21 +310,31 @@ export function GraphList(props: GraphListProps) {
                                 }}
                             >
                                 <div className="row-inner" style={{ paddingLeft: graphWidth + 10 }}>
-                                    {row.isHead && <span className="ref head">HEAD</span>}
-                                    {row.refs.slice(0, 3).map(ref => (
-                                        <span
-                                            key={`${ref.name}-${ref.sha}`}
-                                            className={`ref ${ref.type}`}
-                                            title={`${ref.type}: ${ref.name}`}
-                                        >
-                                            {ref.shortName}
-                                        </span>
-                                    ))}
-                                    {row.refs.length > 3 && (
-                                        <span className="ref more" title={row.refs.map(ref => ref.shortName).join('\n')}>
-                                            +{row.refs.length - 3}
-                                        </span>
-                                    )}
+                                    <span className="row-refs">
+                                        {row.isHead && <span className="ref head">HEAD</span>}
+                                        {row.refs.slice(0, 3).map(ref => (
+                                            <span
+                                                key={`${ref.name}-${ref.sha}`}
+                                                className={`ref ${ref.type}`}
+                                                title={`${ref.type}: ${ref.name}\nRight-click to copy the name`}
+                                                onContextMenu={event => {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    props.onRefContextMenu(ref, event.clientX, event.clientY);
+                                                }}
+                                            >
+                                                {ref.shortName}
+                                            </span>
+                                        ))}
+                                        {row.refs.length > 3 && (
+                                            <span
+                                                className="ref more"
+                                                title={row.refs.map(ref => ref.shortName).join('\n')}
+                                            >
+                                                +{row.refs.length - 3}
+                                            </span>
+                                        )}
+                                    </span>
                                     <span className="subject">{row.subject}</span>
                                     <span className="author">
                                         {row.author} · {relativeTime(row.authorTime)}
@@ -219,7 +345,7 @@ export function GraphList(props: GraphListProps) {
                         );
                     })}
                     {hasMore && (
-                        <div className="load-more" style={{ top: rows.length * rowHeight }}>
+                        <div className="load-more" style={{ top: offsets[rows.length] }}>
                             <button onClick={props.onLoadMore}>Load more commits</button>
                         </div>
                     )}

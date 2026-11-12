@@ -21,6 +21,12 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
 ### Commit graph
 
 - Lane-based graph with merges, colors, refs, tags and detached HEAD marker
+- Stable lane colors, merge branches open to the right of the mainline, lanes shrink to fit
+  instead of being clipped when many branches are active
+- Long branch/tag names wrap onto a second line instead of being truncated
+- Hover a commit to see every branch/tag pointing at it; right-click a branch/tag chip to
+  copy its name (or the full ref name)
+- Toolbar button jumps straight to the commit the current branch points at
 - Virtual scrolling, search by message, all-branches / current-branch scope, load more
 - Repo switcher, commit details pane with changed files and per-file diffs
 - Contextual details pane: current branch, upstream, HEAD, working-tree counts,
@@ -57,7 +63,7 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
 
 | Setting                              | Default | Purpose                             |
 | ------------------------------------ | ------- | ----------------------------------- |
-| `gitKiller.maxCommits`               | `500`   | Commits loaded per page             |
+| `gitKiller.maxCommits`               | `100`   | Commits loaded per page             |
 | `gitKiller.autoRefresh`              | `true`  | Refresh when the repository changes |
 | `gitKiller.confirmDestructive`       | `true`  | Confirm reset / delete / abort      |
 | `gitKiller.graph.rowHeight`          | `24`    | Row height in px                    |

@@ -139,7 +139,7 @@ export class GraphPanel implements vscode.Disposable {
     }
 
     private get pageSize(): number {
-        return vscode.workspace.getConfiguration('gitKiller').get<number>('maxCommits', 500);
+        return vscode.workspace.getConfiguration('gitKiller').get<number>('maxCommits', 100);
     }
 
     private post(message: HostToWebview): void {

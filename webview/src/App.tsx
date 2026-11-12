@@ -4,6 +4,7 @@ import type {
     CompareDetails,
     HostToWebview,
     RebaseTodoItem,
+    RefSummary,
     RepoState,
     RepoSummary,
 } from '../../src/protocol';
@@ -20,6 +21,26 @@ interface ToastState {
     message: string;
 }
 
+type MenuTarget =
+    | { kind: 'commit'; sha: string; x: number; y: number }
+    | { kind: 'ref'; ref: RefSummary; x: number; y: number };
+
+/** Right-click menu for a branch/tag chip in the graph. */
+function refMenuItems(ref: RefSummary): MenuItem[] {
+    const isTag = ref.type === 'tag';
+    return [
+        { label: `${isTag ? 'tag' : 'branch'}: ${ref.shortName}`, header: true },
+        {
+            label: isTag ? 'Copy tag name' : 'Copy branch name',
+            action: () => post({ type: 'copy', text: ref.shortName }),
+        },
+        {
+            label: 'Copy full ref name',
+            action: () => post({ type: 'copy', text: ref.name }),
+        },
+    ];
+}
+
 export function App() {
     const [state, setState] = useState<RepoState | null>(null);
     const [repos, setRepos] = useState<RepoSummary[]>([]);
@@ -30,7 +51,9 @@ export function App() {
     const [filterText, setFilterText] = useState('');
     const [scope, setScope] = useState<'all' | 'current'>('all');
     const [toast, setToast] = useState<ToastState | null>(null);
-    const [menu, setMenu] = useState<{ sha: string; x: number; y: number } | null>(null);
+    const [menu, setMenu] = useState<MenuTarget | null>(null);
+    const [jumpTo, setJumpTo] = useState<{ sha: string; nonce: number } | undefined>();
+    const jumpNonce = useRef(0);
     const [message, setMessage] = useState('');
     const [amend, setAmend] = useState(false);
     const [commitAll, setCommitAll] = useState(false);
@@ -174,6 +197,19 @@ export function App() {
 
     const toggleDetails = () => setDetailsOpen(value => !value);
 
+    /** Scroll the graph to the commit the current branch points at. */
+    const jumpToHead = () => {
+        const sha = state?.head.sha;
+        if (!sha) {
+            return;
+        }
+        jumpNonce.current += 1;
+        setJumpTo({ sha, nonce: jumpNonce.current });
+        setSelected([sha]);
+        setDetailsOpen(true);
+        post({ type: 'selectCommit', sha });
+    };
+
     const submitCommit = () => {
         if (!state || (!message.trim() && !amend)) {
             return;
@@ -207,60 +243,61 @@ export function App() {
         : 'git commit -m "<message>"';
     const commitLabel = amend ? `Amend ${branchLabel}` : `Commit to ${branchLabel}`;
 
-    const menuSubject = menu
-        ? state?.rows.find(row => row.sha === menu.sha)?.subject ?? ''
+    const commitMenu = menu?.kind === 'commit' ? menu : null;
+    const menuSubject = commitMenu
+        ? state?.rows.find(row => row.sha === commitMenu.sha)?.subject ?? ''
         : '';
-    const menuItems: MenuItem[] = menu
+    const menuItems: MenuItem[] = commitMenu
         ? [
-            { label: `${shortSha(menu.sha)} · ${menuSubject}`, header: true },
+            { label: `${shortSha(commitMenu.sha)} · ${menuSubject}`, header: true },
             {
                 label: 'Open details',
-                action: () => post({ type: 'selectCommit', sha: menu.sha }),
+                action: () => post({ type: 'selectCommit', sha: commitMenu.sha }),
             },
             {
-                label: `Checkout ${shortSha(menu.sha)} (detached)`,
-                action: () => post({ type: 'checkout', sha: menu.sha }),
+                label: `Checkout ${shortSha(commitMenu.sha)} (detached)`,
+                action: () => post({ type: 'checkout', sha: commitMenu.sha }),
             },
-            ...(state?.head.sha && state.head.sha !== menu.sha
+            ...(state?.head.sha && state.head.sha !== commitMenu.sha
                 ? [
                     {
                         label: `Compare HEAD (${shortSha(state.head.sha)}) with this commit`,
                         action: () =>
-                            post({ type: 'compare', a: state.head.sha!, b: menu.sha }),
+                            post({ type: 'compare', a: state.head.sha!, b: commitMenu.sha }),
                     },
                 ]
                 : []),
             {
                 label: 'New branch here…',
                 separatorBefore: true,
-                action: () => post({ type: 'createBranchAt', sha: menu.sha }),
+                action: () => post({ type: 'createBranchAt', sha: commitMenu.sha }),
             },
             {
                 label: 'New tag here…',
-                action: () => post({ type: 'createTagAt', sha: menu.sha }),
+                action: () => post({ type: 'createTagAt', sha: commitMenu.sha }),
             },
             {
                 label: `Cherry-pick onto ${branchLabel}`,
                 separatorBefore: true,
-                action: () => post({ type: 'cherryPick', sha: menu.sha }),
+                action: () => post({ type: 'cherryPick', sha: commitMenu.sha }),
             },
             {
                 label: `Revert on ${branchLabel}`,
-                action: () => post({ type: 'revert', sha: menu.sha }),
+                action: () => post({ type: 'revert', sha: commitMenu.sha }),
             },
             {
                 label: 'Interactive rebase from here…',
-                action: () => post({ type: 'interactiveRebase', base: menu.sha }),
+                action: () => post({ type: 'interactiveRebase', base: commitMenu.sha }),
             },
             {
                 label: 'Copy SHA',
                 separatorBefore: true,
-                action: () => post({ type: 'copy', text: menu.sha }),
+                action: () => post({ type: 'copy', text: commitMenu.sha }),
             },
             {
                 label: 'Copy subject',
                 action: () => {
-                    const row = state?.rows.find(item => item.sha === menu.sha);
+                    const row = state?.rows.find(item => item.sha === commitMenu.sha);
                     if (row) {
                         post({ type: 'copy', text: row.subject });
                     }
@@ -270,10 +307,12 @@ export function App() {
                 label: `Reset ${branchLabel} to this commit…`,
                 separatorBefore: true,
                 danger: true,
-                action: () => post({ type: 'reset', sha: menu.sha }),
+                action: () => post({ type: 'reset', sha: commitMenu.sha }),
             },
         ]
-        : [];
+        : menu?.kind === 'ref'
+            ? refMenuItems(menu.ref)
+            : [];
 
     return (
         <div className="app">
@@ -293,6 +332,7 @@ export function App() {
                 onSwitchBranch={() => post({ type: 'switchBranch' })}
                 onMerge={() => post({ type: 'merge' })}
                 onRebase={() => post({ type: 'rebase' })}
+                onJumpToHead={jumpToHead}
                 onToggleDetails={toggleDetails}
             />
 
@@ -349,8 +389,10 @@ export function App() {
                             laneWidth={state.ui.laneWidth}
                             selected={selected}
                             hasMore={state.hasMore}
+                            jumpTo={jumpTo}
                             onSelect={handleSelect}
-                            onContextMenu={(sha, x, y) => setMenu({ sha, x, y })}
+                            onContextMenu={(sha, x, y) => setMenu({ kind: 'commit', sha, x, y })}
+                            onRefContextMenu={(ref, x, y) => setMenu({ kind: 'ref', ref, x, y })}
                             onLoadMore={() => post({ type: 'loadMore' })}
                         />
                     </div>

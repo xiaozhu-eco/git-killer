@@ -7,7 +7,7 @@ function delay(ms: number): Promise<void> {
 }
 
 export async function run(): Promise<void> {
-    const extension = vscode.extensions.getExtension('geocat.git-killer');
+    const extension = vscode.extensions.getExtension('xiaozhu-studio.git-killer');
     assert.ok(extension, 'Git Killer extension should be installed');
     await extension.activate();
 

@@ -17,6 +17,10 @@ export interface LaneEdge {
     from: number;
     to: number;
     color: number;
+    /** Where the segment starts: the top edge of the row, or the commit dot. */
+    fromAnchor: 'top' | 'dot';
+    /** Where the segment ends: the bottom edge of the row, or the commit dot. */
+    toAnchor: 'bottom' | 'dot';
 }
 
 export interface GraphRow {

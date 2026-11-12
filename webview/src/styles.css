@@ -244,6 +244,17 @@ select:focus {
     border-radius: 3px;
 }
 
+/* Long branch/tag names wrap here instead of being cut off; the row grows to fit. */
+.row-refs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px 5px;
+    flex: 0 1 52%;
+    min-width: 0;
+    padding: 2px 0;
+}
+
 .row:hover .row-inner {
     background: var(--vscode-list-hoverBackground);
 }
@@ -287,16 +298,16 @@ select:focus {
 
 /* Ref badges */
 .ref {
-    flex: 0 0 auto;
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
     font-size: 10.5px;
-    line-height: 16px;
+    line-height: 15px;
     padding: 0 6px;
     border-radius: 8px;
     border: 1px solid currentColor;
+    text-align: left;
 }
 
 .ref.local {
@@ -966,11 +977,14 @@ button.context-branch:hover {
     align-items: center;
     gap: 6px;
     min-width: 0;
-    padding: 5px 8px;
+    padding: 4px 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
 }
 
-.toolbar-row-top {
-    border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+.toolbar-row::-webkit-scrollbar {
+    display: none;
 }
 
 .toolbar-cluster {
@@ -978,7 +992,7 @@ button.context-branch:hover {
     align-items: center;
     gap: 6px;
     min-width: 0;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
 }
 
 .toolbar-cluster-right {
@@ -1171,8 +1185,8 @@ button.toolbar-icon-button.active {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex: 1 1 200px;
-    min-width: 120px;
+    flex: 1 1 180px;
+    min-width: 80px;
     height: 22px;
     padding: 0 6px;
     border-radius: 5px;
@@ -1269,7 +1283,7 @@ button.tool-button:hover svg {
     background: rgba(128, 128, 128, 0.28);
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1120px) {
     button.tool-button span {
         display: none;
     }
@@ -1279,27 +1293,35 @@ button.tool-button:hover svg {
     }
 }
 
-@media (max-width: 760px) {
-    .toolbar-row-bottom {
-        flex-wrap: wrap;
-        row-gap: 5px;
-    }
-
-    .toolbar-actions {
-        flex: 1 1 auto;
-        justify-content: flex-end;
-    }
-
+@media (max-width: 900px) {
     .repo-select {
-        max-width: 150px;
+        max-width: 140px;
     }
 
     .repo-select select {
-        max-width: 104px;
+        max-width: 96px;
     }
 
     button.branch-pill {
-        max-width: 180px;
+        max-width: 160px;
+    }
+
+    .scope-segment button {
+        padding: 0 6px;
+    }
+}
+
+@media (max-width: 760px) {
+    .repo-select {
+        max-width: 112px;
+    }
+
+    .repo-select select {
+        max-width: 72px;
+    }
+
+    button.branch-pill {
+        max-width: 120px;
     }
 }
 

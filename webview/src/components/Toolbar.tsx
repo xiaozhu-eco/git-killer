@@ -13,6 +13,7 @@ import {
     IconRefresh,
     IconRepo,
     IconSearch,
+    IconTarget,
 } from './icons';
 
 interface ToolbarProps {
@@ -31,6 +32,7 @@ interface ToolbarProps {
     onSwitchBranch: () => void;
     onMerge: () => void;
     onRebase: () => void;
+    onJumpToHead: () => void;
     onToggleDetails: () => void;
 }
 
@@ -59,7 +61,7 @@ export function Toolbar(props: ToolbarProps) {
 
     return (
         <div className="toolbar">
-            <div className="toolbar-row toolbar-row-top">
+            <div className="toolbar-row">
                 <div className="toolbar-cluster">
                     <div className="repo-select" title={state ? `Repository: ${state.root}` : 'Repository'}>
                         <IconRepo width={13} height={13} className="repo-select-icon" />
@@ -96,6 +98,28 @@ export function Toolbar(props: ToolbarProps) {
                     </button>
                 </div>
 
+                <div className="toolbar-search">
+                    <IconSearch width={13} height={13} className="toolbar-search-icon" />
+                    <input
+                        value={props.filterText}
+                        placeholder="Search commit messages…"
+                        onChange={event => props.onFilterText(event.target.value)}
+                        spellCheck={false}
+                        aria-label="Search commits by message"
+                        title="Filter commits by message (git log --grep)"
+                    />
+                    {props.filterText && (
+                        <button
+                            type="button"
+                            className="search-clear"
+                            title="Clear search"
+                            onClick={() => props.onFilterText('')}
+                        >
+                            <IconClose width={10} height={10} />
+                        </button>
+                    )}
+                </div>
+
                 <div className="toolbar-cluster toolbar-cluster-right">
                     <div className="scope-segment" role="group" aria-label="Commit scope">
                         <button
@@ -121,6 +145,15 @@ export function Toolbar(props: ToolbarProps) {
                     <button
                         type="button"
                         className="toolbar-icon-button"
+                        onClick={props.onJumpToHead}
+                        disabled={!state?.head.sha}
+                        title={`Jump to the current branch commit (${head})`}
+                    >
+                        <IconTarget />
+                    </button>
+                    <button
+                        type="button"
+                        className="toolbar-icon-button"
                         onClick={props.onRefresh}
                         title="Refresh graph and repository state"
                     >
@@ -135,30 +168,6 @@ export function Toolbar(props: ToolbarProps) {
                     >
                         <IconPanel />
                     </button>
-                </div>
-            </div>
-
-            <div className="toolbar-row toolbar-row-bottom">
-                <div className="toolbar-search">
-                    <IconSearch width={13} height={13} className="toolbar-search-icon" />
-                    <input
-                        value={props.filterText}
-                        placeholder="Search commit messages…"
-                        onChange={event => props.onFilterText(event.target.value)}
-                        spellCheck={false}
-                        aria-label="Search commits by message"
-                        title="Filter commits by message (git log --grep)"
-                    />
-                    {props.filterText && (
-                        <button
-                            type="button"
-                            className="search-clear"
-                            title="Clear search"
-                            onClick={() => props.onFilterText('')}
-                        >
-                            <IconClose width={10} height={10} />
-                        </button>
-                    )}
                 </div>
 
                 <div className="toolbar-actions">
