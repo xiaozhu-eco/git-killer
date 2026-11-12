@@ -577,6 +577,63 @@ li {
     font-variant-numeric: tabular-nums;
 }
 
+.row-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.row-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.row-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9.5px;
+    line-height: 1.35;
+    color: var(--vscode-descriptionForeground);
+    font-variant-numeric: tabular-nums;
+}
+
+.submodule-row.state-modified .row-sub {
+    color: var(--vscode-charts-orange, #d18616);
+}
+
+.submodule-row.state-uninitialized {
+    opacity: 0.85;
+}
+
+.submodule-row.state-conflict .row-sub {
+    color: var(--vscode-errorForeground);
+}
+
+.worktree-row .inline-action {
+    opacity: 0.6;
+}
+
+.worktree-row:hover .inline-action {
+    opacity: 1;
+}
+
+.row-graph-hint {
+    display: flex;
+    flex: 0 0 auto;
+    color: var(--vscode-charts-blue, #3794ff);
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+
+.submodule-row.clickable:hover .row-graph-hint,
+.submodule-row.clickable:focus-visible .row-graph-hint {
+    opacity: 0.9;
+}
+
 .current-tag {
     flex: 0 0 auto;
     padding: 0 4px;
@@ -611,6 +668,10 @@ li {
 .inline-action:hover {
     opacity: 1;
     background: var(--vscode-button-secondaryHoverBackground, rgba(128, 128, 128, 0.24));
+}
+
+.inline-action.danger {
+    color: var(--vscode-errorForeground);
 }
 
 .empty-row {

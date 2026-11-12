@@ -72,6 +72,30 @@ export class GraphPanel implements vscode.Disposable {
         return new GraphPanel(panel, repo, deps);
     }
 
+    /**
+     * Reveals the graph of `root`, reusing an open graph tab when one exists so that
+     * jumping into a submodule does not pile up webview panels.
+     */
+    static openFor(deps: GraphPanelDeps, root: string): GraphPanel | undefined {
+        const repo = deps.manager.getByRoot(root);
+        if (!repo) {
+            void vscode.window.showInformationMessage('No Git repository found in this workspace.');
+            return undefined;
+        }
+        const existing = GraphPanel.panels.get(repo.root);
+        if (existing) {
+            existing.panel.reveal(undefined, false);
+            return existing;
+        }
+        const current = [...GraphPanel.panels.values()].find(panel => !panel.disposed);
+        if (current) {
+            current.switchRepo(repo.root);
+            current.panel.reveal(undefined, false);
+            return current;
+        }
+        return GraphPanel.open(deps, repo.root);
+    }
+
     static revive(panel: vscode.WebviewPanel, deps: GraphPanelDeps): GraphPanel | undefined {
         const repo = deps.manager.getActive();
         if (!repo) {

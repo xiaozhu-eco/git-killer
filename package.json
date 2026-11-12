@@ -2,7 +2,7 @@
     "name": "git-killer",
     "displayName": "Git Killer",
     "description": "A commit-graph-centric Git client: browse, compare, blame and operate on Git from one graph.",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "publisher": "xiaozhu-studio",
     "license": "MIT",
     "icon": "media/icon.png",
@@ -34,21 +34,12 @@
         "onStartupFinished"
     ],
     "contributes": {
-        "viewsContainers": {
-            "activitybar": [
-                {
-                    "id": "gitKiller",
-                    "title": "Git Killer",
-                    "icon": "media/graph.svg"
-                }
-            ]
-        },
         "views": {
-            "gitKiller": [
+            "scm": [
                 {
                     "type": "webview",
                     "id": "gitKiller.sidebar",
-                    "name": "Repository"
+                    "name": "Git Killer"
                 }
             ]
         },
@@ -178,6 +169,42 @@
                 "command": "gitKiller.abortOperation",
                 "title": "Abort In-Progress Operation",
                 "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.worktreeAdd",
+                "title": "Add Worktree...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.worktreeOpen",
+                "title": "Open Worktree",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.worktreeRemove",
+                "title": "Remove Worktree...",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.worktreePrune",
+                "title": "Prune Worktrees",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.submoduleUpdate",
+                "title": "Update Submodules",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.submoduleSync",
+                "title": "Sync Submodule URLs",
+                "category": "Git Killer"
+            },
+            {
+                "command": "gitKiller.submoduleGraph",
+                "title": "Open Submodule Graph...",
+                "category": "Git Killer",
+                "icon": "$(git-commit)"
             },
             {
                 "command": "gitKiller.copySha",

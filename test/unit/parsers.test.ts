@@ -7,6 +7,9 @@ import {
     parseLog,
     parseRefs,
     parseStatus,
+    parseSubmoduleConfig,
+    parseSubmoduleStatus,
+    parseWorktrees,
     toRefSummary,
 } from '../../src/git/parsers';
 
@@ -149,5 +152,75 @@ describe('parseLineLog', () => {
         expect(entries).toHaveLength(2);
         expect(entries[0]).toMatchObject({ author: 'Alice', subject: 'subject' });
         expect(entries[1]).toMatchObject({ author: 'Bob', subject: 'older' });
+    });
+});
+
+describe('parseWorktrees', () => {
+    it('reads each porcelain block with branch, detached and prunable flags', () => {
+        const raw = [
+            'worktree /repo',
+            'HEAD aaaa',
+            'branch refs/heads/main',
+            '',
+            'worktree /repo-fix',
+            'HEAD bbbb',
+            'branch refs/heads/fix/lane',
+            'locked reason here',
+            '',
+            'worktree /repo-old',
+            'HEAD cccc',
+            'detached',
+            'prunable gitdir file points to non-existent location',
+            '',
+        ].join('\n');
+        const worktrees = parseWorktrees(raw);
+        expect(worktrees).toHaveLength(3);
+        expect(worktrees[0]).toMatchObject({ path: '/repo', branch: 'main', detached: false, locked: false });
+        expect(worktrees[1]).toMatchObject({ path: '/repo-fix', branch: 'fix/lane', locked: true });
+        expect(worktrees[2]).toMatchObject({
+            path: '/repo-old',
+            detached: true,
+            prunable: true,
+        });
+        expect(worktrees[2].branch).toBeUndefined();
+    });
+});
+
+describe('parseSubmoduleStatus', () => {
+    it('maps status flags and keeps paths with spaces', () => {
+        const raw = [
+            ' aaaa vendor/design-system (heads/main)',
+            '+bbbb vendor/icons (v1.2.0)',
+            '-cccc vendor/legacy',
+            'Udddd vendor/a b (heads/main)',
+        ].join('\n');
+        const submodules = parseSubmoduleStatus(raw);
+        expect(submodules).toHaveLength(4);
+        expect(submodules[0]).toMatchObject({
+            flag: ' ',
+            sha: 'aaaa',
+            path: 'vendor/design-system',
+            describe: 'heads/main',
+        });
+        expect(submodules[1]).toMatchObject({ flag: '+', path: 'vendor/icons', describe: 'v1.2.0' });
+        expect(submodules[2]).toMatchObject({ flag: '-', path: 'vendor/legacy', describe: undefined });
+        expect(submodules[3]).toMatchObject({ flag: 'U', path: 'vendor/a b', describe: 'heads/main' });
+    });
+});
+
+describe('parseSubmoduleConfig', () => {
+    it('pairs path and url entries by submodule name', () => {
+        const raw = [
+            'submodule.vendor/icons.path\nvendor/icons',
+            'submodule.vendor/icons.url\nhttps://example.com/icons.git',
+            'submodule.docs.path\ndocs',
+            '',
+        ].join('\0');
+        const config = parseSubmoduleConfig(raw);
+        expect(config.get('vendor/icons')).toEqual({
+            path: 'vendor/icons',
+            url: 'https://example.com/icons.git',
+        });
+        expect(config.get('docs')).toEqual({ path: 'docs', url: undefined });
     });
 });

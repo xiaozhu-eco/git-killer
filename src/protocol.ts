@@ -129,6 +129,30 @@ export interface CompareDetails {
     files: FileChange[];
 }
 
+export interface WorktreeInfo {
+    path: string;
+    head?: string;
+    branch?: string;
+    bare: boolean;
+    detached: boolean;
+    locked: boolean;
+    prunable: boolean;
+    isCurrent: boolean;
+}
+
+export type SubmoduleState = 'clean' | 'modified' | 'uninitialized' | 'conflict';
+
+export interface SubmoduleInfo {
+    path: string;
+    /** Absolute path of the submodule working directory. */
+    absolutePath: string;
+    url?: string;
+    sha?: string;
+    state: SubmoduleState;
+    /** Description from `git submodule status`, e.g. "heads/main" or "v1.2-3-gabc". */
+    describe?: string;
+}
+
 export interface SidebarState {
     repos: RepoSummary[];
     active?: string;
@@ -144,6 +168,8 @@ export interface SidebarState {
     operation: OperationInfo | null;
     branches: RefSummary[];
     stashes: string[];
+    worktrees: WorktreeInfo[];
+    submodules: SubmoduleInfo[];
 }
 
 export type HostToWebview =
@@ -187,5 +213,12 @@ export type WebviewToHost =
     | { type: 'checkoutBranch'; name: string }
     | { type: 'continueOperation' }
     | { type: 'abortOperation' }
+    | { type: 'worktreeAdd' }
+    | { type: 'worktreeOpen'; path: string }
+    | { type: 'worktreeRemove'; path: string }
+    | { type: 'worktreePrune' }
+    | { type: 'submoduleUpdate'; path?: string }
+    | { type: 'submoduleSync'; path?: string }
+    | { type: 'openSubmoduleGraph'; path: string }
     | { type: 'openGraph' }
     | { type: 'showFileHistory'; sha: string; file: string };

@@ -14,7 +14,7 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
   code --install-extension xiaozhu-studio.git-killer
   ```
 
-- **From source**: `npm install && npm run compile`, then press `F5` to launch the Extension Development Host, or install the packaged `.vsix` with `code --install-extension git-killer-0.1.0.vsix`.
+- **From source**: `npm install && npm run compile`, then press `F5` to launch the Extension Development Host, or install the packaged `.vsix` with `code --install-extension git-killer-0.3.0.vsix`.
 
 ## Features
 
@@ -33,6 +33,11 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
   per-action descriptions and the exact git command each action will run
 - Sidebar: repository/path card, branch tracking card, working-tree stat tiles,
   sync and stash groups, per-stash Pop, recent branches with direct switching
+- Sidebar worktrees section: list every checkout, open another worktree in a new
+  window, add a worktree on an existing or new branch, remove and prune stale entries
+- Sidebar submodules section: status per submodule (up to date / new commits /
+  not initialized / conflict), update one or all, sync URLs from `.gitmodules`, and click a
+  submodule to switch the commit graph to it (reusing the open graph tab)
 - Ctrl/Cmd-click a second commit to compare two commits
 - Right-click menu: grouped actions with the target branch in every label
 
@@ -56,7 +61,8 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
 - `Git Killer: Switch Branch` (`Cmd/Ctrl+Alt+B`)
 - `Git Killer: Toggle Inline Blame` (`Cmd/Ctrl+Alt+Shift+B`)
 - `Git Killer: Interactive Rebase` from the command palette or commit context menu
-- Activity bar sidebar with repository status, recent branches and stashes
+- Git Killer panel inside the built-in Source Control sidebar: repository status,
+  worktrees, submodules, recent branches and stashes
 - Source Control title menu entry
 
 ## Settings
@@ -79,7 +85,7 @@ A commit-graph-centric Git client for VS Code. Browse, compare, blame and operat
 
 - Reword in the interactive rebase todo editor
 - Interactive merge preview and merge strategy picker
-- Worktrees, submodules, bisect, LFS, GPG signing flows
+- Adding or deinit-ing submodules from the panel, bisect, LFS, GPG signing flows
 - Force push / push tags UI, remote management
 - Full i18n (English string table is ready to be externalized)
 

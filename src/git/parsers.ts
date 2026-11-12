@@ -424,3 +424,143 @@ export function parseLineLog(raw: string): LogEntry[] {
     }
     return entries;
 }
+
+export interface RawWorktree {
+    path: string;
+    head?: string;
+    branch?: string;
+    bare: boolean;
+    detached: boolean;
+    locked: boolean;
+    prunable: boolean;
+    lockReason?: string;
+    pruneReason?: string;
+}
+
+/** Parses `git worktree list --porcelain` output. */
+export function parseWorktrees(raw: string): RawWorktree[] {
+    const worktrees: RawWorktree[] = [];
+    let current: RawWorktree | undefined;
+
+    const flush = () => {
+        if (current) {
+            worktrees.push(current);
+            current = undefined;
+        }
+    };
+
+    for (const line of raw.split('\n')) {
+        if (!line.trim()) {
+            flush();
+            continue;
+        }
+        const separator = line.indexOf(' ');
+        const key = separator === -1 ? line : line.slice(0, separator);
+        const value = separator === -1 ? '' : line.slice(separator + 1);
+
+        if (key === 'worktree') {
+            flush();
+            current = { path: value, bare: false, detached: false, locked: false, prunable: false };
+            continue;
+        }
+        if (!current) {
+            continue;
+        }
+        switch (key) {
+            case 'HEAD':
+                current.head = value.trim() || undefined;
+                break;
+            case 'branch':
+                current.branch = value.startsWith('refs/heads/')
+                    ? value.slice('refs/heads/'.length)
+                    : value;
+                break;
+            case 'detached':
+                current.detached = true;
+                break;
+            case 'bare':
+                current.bare = true;
+                break;
+            case 'locked':
+                current.locked = true;
+                current.lockReason = value || undefined;
+                break;
+            case 'prunable':
+                current.prunable = true;
+                current.pruneReason = value || undefined;
+                break;
+            default:
+                break;
+        }
+    }
+    flush();
+    return worktrees;
+}
+
+export type RawSubmoduleFlag = ' ' | '+' | '-' | 'U';
+
+export interface RawSubmodule {
+    flag: RawSubmoduleFlag;
+    sha?: string;
+    path: string;
+    describe?: string;
+}
+
+/** Parses `git submodule status [--recursive]` output. */
+export function parseSubmoduleStatus(raw: string): RawSubmodule[] {
+    const submodules: RawSubmodule[] = [];
+    for (const line of raw.split('\n')) {
+        if (!line.trim()) {
+            continue;
+        }
+        const flag = line[0];
+        if (flag !== ' ' && flag !== '+' && flag !== '-' && flag !== 'U') {
+            continue;
+        }
+        const rest = line.slice(1).trim();
+        const match = /^(?:([0-9a-fA-F]+)\s+)?(.*?)(?:\s+\(([^()]*)\))?$/.exec(rest);
+        if (!match) {
+            continue;
+        }
+        submodules.push({
+            flag,
+            sha: match[1],
+            path: match[2] ?? '',
+            describe: match[3],
+        });
+    }
+    return submodules;
+}
+
+export interface SubmoduleConfig {
+    path?: string;
+    url?: string;
+}
+
+/**
+ * Parses `git config -z --file .gitmodules --get-regexp` output, where entries are
+ * NUL-separated `submodule.<name>.<key>\n<value>` pairs keyed by submodule name.
+ */
+export function parseSubmoduleConfig(raw: string): Map<string, SubmoduleConfig> {
+    const config = new Map<string, SubmoduleConfig>();
+    for (const entry of raw.split('\0')) {
+        if (!entry.trim()) {
+            continue;
+        }
+        const newline = entry.indexOf('\n');
+        const key = newline === -1 ? entry : entry.slice(0, newline);
+        const value = newline === -1 ? '' : entry.slice(newline + 1);
+        const match = /^submodule\.(.*)\.(path|url)$/.exec(key.trim());
+        if (!match) {
+            continue;
+        }
+        const current = config.get(match[1]) ?? {};
+        if (match[2] === 'path') {
+            current.path = value.trim();
+        } else {
+            current.url = value.trim();
+        }
+        config.set(match[1], current);
+    }
+    return config;
+}

@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type {
@@ -8,6 +9,9 @@ import type {
     OperationInfo,
     RefSummary,
     StatusSummary,
+    SubmoduleInfo,
+    SubmoduleState,
+    WorktreeInfo,
 } from '../protocol';
 import { runGit } from './executor';
 import {
@@ -22,6 +26,9 @@ import {
     parseLogEntries,
     parseRefs,
     parseStatus,
+    parseSubmoduleConfig,
+    parseSubmoduleStatus,
+    parseWorktrees,
     toRefSummary,
 } from './parsers';
 
@@ -253,5 +260,73 @@ export class GitRepository {
 
     async show(rev: string, relPath: string): Promise<string> {
         return runGit(['show', `${rev}:${relPath}`], { cwd: this.root, readOnly: true });
+    }
+
+    async worktrees(): Promise<WorktreeInfo[]> {
+        const raw = await runGit(['worktree', 'list', '--porcelain'], {
+            cwd: this.root,
+            readOnly: true,
+        }).catch(() => '');
+        if (!raw.trim()) {
+            return [];
+        }
+        return parseWorktrees(raw).map(worktree => ({
+            ...worktree,
+            isCurrent: this.samePath(worktree.path, this.root),
+        }));
+    }
+
+    async submodules(): Promise<SubmoduleInfo[]> {
+        const raw = await runGit(['submodule', 'status', '--recursive'], {
+            cwd: this.root,
+            readOnly: true,
+        }).catch(() => '');
+        const entries = parseSubmoduleStatus(raw);
+        if (entries.length === 0) {
+            return [];
+        }
+
+        const configRaw = await runGit(
+            ['config', '-z', '--file', '.gitmodules', '--get-regexp', '^submodule\..*\.(path|url)$'],
+            { cwd: this.root, readOnly: true }
+        ).catch(() => '');
+        const byPath = new Map<string, { url?: string }>();
+        for (const entry of parseSubmoduleConfig(configRaw).values()) {
+            if (entry.path) {
+                byPath.set(entry.path, { url: entry.url });
+            }
+        }
+
+        return entries.map(entry => {
+            const state: SubmoduleState =
+                entry.flag === '-'
+                    ? 'uninitialized'
+                    : entry.flag === '+'
+                        ? 'modified'
+                        : entry.flag === 'U'
+                            ? 'conflict'
+                            : 'clean';
+            return {
+                path: entry.path,
+                absolutePath: path.join(this.root, entry.path),
+                sha: entry.sha,
+                describe: entry.describe,
+                state,
+                url: byPath.get(entry.path)?.url,
+            };
+        });
+    }
+
+    private samePath(a: string, b: string): boolean {
+        const normalize = (value: string): string => {
+            try {
+                return fs.realpathSync.native(value);
+            } catch {
+                return path.resolve(value);
+            }
+        };
+        const left = normalize(a);
+        const right = normalize(b);
+        return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right;
     }
 }

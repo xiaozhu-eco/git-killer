@@ -222,3 +222,61 @@ export async function abortOperation(repo: GitRepository, kind: OperationInfo['k
     log(args);
     await run(args, { cwd: repo.root });
 }
+
+export interface WorktreeAddOptions {
+    /** Existing ref to check out in the new worktree. */
+    ref?: string;
+    /** Name of a new branch to create for the new worktree. */
+    branch?: string;
+    /** Check out a detached HEAD at `ref` instead of a branch. */
+    detach?: boolean;
+}
+
+export async function worktreeAdd(
+    repo: GitRepository,
+    target: string,
+    options: WorktreeAddOptions = {}
+): Promise<void> {
+    const args = ['worktree', 'add'];
+    if (options.branch) {
+        args.push('-b', options.branch);
+    } else if (options.detach) {
+        args.push('--detach');
+    }
+    args.push(target);
+    if (options.ref) {
+        args.push(options.ref);
+    }
+    log(args);
+    await run(args, { cwd: repo.root });
+}
+
+export async function worktreeRemove(repo: GitRepository, target: string, force = false): Promise<void> {
+    const args = ['worktree', 'remove', ...(force ? ['--force'] : []), target];
+    log(args);
+    await run(args, { cwd: repo.root });
+}
+
+export async function worktreePrune(repo: GitRepository): Promise<void> {
+    const args = ['worktree', 'prune'];
+    log(args);
+    await run(args, { cwd: repo.root });
+}
+
+export async function submoduleUpdate(repo: GitRepository, subPath?: string): Promise<void> {
+    const args = ['submodule', 'update', '--init', '--recursive'];
+    if (subPath) {
+        args.push('--', subPath);
+    }
+    log(args);
+    await run(args, { cwd: repo.root });
+}
+
+export async function submoduleSync(repo: GitRepository, subPath?: string): Promise<void> {
+    const args = ['submodule', 'sync', '--recursive'];
+    if (subPath) {
+        args.push('--', subPath);
+    }
+    log(args);
+    await run(args, { cwd: repo.root });
+}

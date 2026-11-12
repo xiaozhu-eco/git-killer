@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { SidebarState } from '../../src/protocol';
+import type { SidebarState, SubmoduleState } from '../../src/protocol';
 import {
   IconBranch,
   IconCheck,
@@ -7,14 +7,30 @@ import {
   IconFetch,
   IconGraph,
   IconPop,
+  IconPrune,
   IconPull,
   IconPush,
   IconRefresh,
   IconRepo,
   IconStash,
+  IconSubmodule,
+  IconSync,
   IconWarning,
+  IconWorktree,
 } from './components/icons';
 import { post } from './vscodeApi';
+
+const SUBMODULE_LABELS: Record<SubmoduleState, string> = {
+  clean: 'up to date',
+  modified: 'new commits',
+  uninitialized: 'not initialized',
+  conflict: 'merge conflict',
+};
+
+function baseName(target: string): string {
+  const parts = target.split(/[\\/]+/).filter(Boolean);
+  return parts[parts.length - 1] ?? target;
+}
 
 function stashMessage(stash: string): string {
   const separator = stash.indexOf(': ');
@@ -83,6 +99,9 @@ export function Sidebar() {
   const clean = totalChanges === 0 && state.conflicted === 0;
   const canStash = totalChanges > 0 && state.conflicted === 0;
   const hasStashes = state.stashes.length > 0;
+  const worktrees = state.worktrees ?? [];
+  const submodules = state.submodules ?? [];
+  const pendingSubmodules = submodules.filter(submodule => submodule.state !== 'clean').length;
   const operationLabel = state.operation
     ? state.operation.kind.charAt(0).toUpperCase() + state.operation.kind.slice(1)
     : '';
@@ -332,6 +351,207 @@ export function Sidebar() {
           >
             <IconPop />
             <span>Pop latest</span>
+          </button>
+        </div>
+      </section>
+
+      <section className="panel-section">
+        <div className="section-head">
+          <span>Worktrees</span>
+          <span className="section-hint">
+            {worktrees.length === 0
+              ? 'none'
+              : worktrees.length > 1
+                ? `${worktrees.length} checked out`
+                : 'single checkout'}
+          </span>
+        </div>
+        <ul className="list">
+          {worktrees.length === 0 && <li className="empty-row">No worktrees</li>}
+          {worktrees.map(worktree => {
+            const current = worktree.isCurrent;
+            const label = worktree.branch
+              ? worktree.branch
+              : worktree.bare
+                ? 'bare repository'
+                : worktree.detached
+                  ? 'detached HEAD'
+                  : 'no branch';
+            const meta = [label, worktree.head ? worktree.head.slice(0, 7) : undefined]
+              .filter(Boolean)
+              .join(' · ');
+            const open = () => {
+              if (!current) {
+                post({ type: 'worktreeOpen', path: worktree.path });
+              }
+            };
+            return (
+              <li
+                key={worktree.path}
+                className={`row-item worktree-row ${current ? 'current' : 'clickable'}`}
+                onClick={open}
+                onKeyDown={event => {
+                  if (!current && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    open();
+                  }
+                }}
+                role={current ? undefined : 'button'}
+                tabIndex={current ? undefined : 0}
+                title={`${worktree.path}\n${meta}${current ? '\ncurrent workspace' : '\nClick to open in a new window'}`}
+              >
+                <span className="row-icon">
+                  {current ? (
+                    <IconCheck width={12} height={12} />
+                  ) : (
+                    <IconWorktree width={12} height={12} />
+                  )}
+                </span>
+                <span className="row-stack">
+                  <span className="row-title">{baseName(worktree.path)}</span>
+                  <span className="row-sub">
+                    {meta}
+                    {worktree.locked ? ' · locked' : ''}
+                    {worktree.prunable ? ' · stale' : ''}
+                  </span>
+                </span>
+                {current ? (
+                  <span className="current-tag">current</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-action danger"
+                    onClick={event => {
+                      event.stopPropagation();
+                      post({ type: 'worktreeRemove', path: worktree.path });
+                    }}
+                    title={`git worktree remove ${worktree.path}`}
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <div className="button-grid two">
+          <button
+            type="button"
+            className="action-button"
+            onClick={() => post({ type: 'worktreeAdd' })}
+            title="git worktree add <path> <branch>"
+          >
+            <IconWorktree />
+            <span>Add worktree</span>
+          </button>
+          <button
+            type="button"
+            className="action-button"
+            onClick={() => post({ type: 'worktreePrune' })}
+            title="git worktree prune (drop entries for deleted directories)"
+          >
+            <IconPrune />
+            <span>Prune</span>
+          </button>
+        </div>
+      </section>
+
+      <section className="panel-section">
+        <div className="section-head">
+          <span>Submodules</span>
+          {submodules.length > 0 && (
+            <span className="section-hint">
+              {pendingSubmodules > 0 ? `${pendingSubmodules} need attention` : 'up to date'}
+            </span>
+          )}
+        </div>
+        {submodules.length === 0 ? (
+          <div className="empty-row">No submodules</div>
+        ) : (
+          <ul className="list">
+            {submodules.map(submodule => {
+              const openable = submodule.state !== 'uninitialized';
+              const openGraph = () => {
+                if (openable) {
+                  post({ type: 'openSubmoduleGraph', path: submodule.absolutePath });
+                }
+              };
+              return (
+                <li
+                  key={submodule.path}
+                  className={`row-item submodule-row state-${submodule.state}${openable ? ' clickable' : ''}`}
+                  onClick={openGraph}
+                  onKeyDown={event => {
+                    if (openable && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault();
+                      openGraph();
+                    }
+                  }}
+                  role={openable ? 'button' : undefined}
+                  tabIndex={openable ? 0 : undefined}
+                  title={[
+                    submodule.path,
+                    submodule.url,
+                    submodule.sha,
+                    openable
+                      ? 'Click to open its commit graph'
+                      : 'Initialize this submodule to open its commit graph',
+                  ]
+                    .filter(Boolean)
+                    .join('\n')}
+                >
+                  <span className="row-icon">
+                    <IconSubmodule width={12} height={12} />
+                  </span>
+                  <span className="row-stack">
+                    <span className="row-title">{submodule.path}</span>
+                    <span className="row-sub">
+                      {submodule.state === 'clean' && submodule.describe
+                        ? `at ${submodule.describe}`
+                        : SUBMODULE_LABELS[submodule.state]}
+                    </span>
+                  </span>
+                  {openable && (
+                    <span className="row-graph-hint">
+                      <IconGraph width={11} height={11} />
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="inline-action"
+                    onClick={event => {
+                      event.stopPropagation();
+                      post({ type: 'submoduleUpdate', path: submodule.path });
+                    }}
+                    title={`git submodule update --init --recursive -- ${submodule.path}`}
+                  >
+                    {submodule.state === 'uninitialized' ? 'Init' : 'Update'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="button-grid two">
+          <button
+            type="button"
+            className="action-button"
+            disabled={submodules.length === 0}
+            onClick={() => post({ type: 'submoduleUpdate' })}
+            title="git submodule update --init --recursive"
+          >
+            <IconSubmodule />
+            <span>Update all</span>
+          </button>
+          <button
+            type="button"
+            className="action-button"
+            disabled={submodules.length === 0}
+            onClick={() => post({ type: 'submoduleSync' })}
+            title="git submodule sync --recursive (rewrite URLs from .gitmodules)"
+          >
+            <IconSync />
+            <span>Sync URLs</span>
           </button>
         </div>
       </section>

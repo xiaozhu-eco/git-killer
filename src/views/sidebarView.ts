@@ -61,18 +61,22 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
             operation: null,
             branches: [],
             stashes: [],
+            worktrees: [],
+            submodules: [],
         };
 
         if (!repo) {
             return empty;
         }
 
-        const [head, status, operation, refs, stashes] = await Promise.all([
+        const [head, status, operation, refs, stashes, worktrees, submodules] = await Promise.all([
             repo.head(),
             repo.status(),
             repo.operation(),
             repo.refs(),
             repo.stashes(),
+            repo.worktrees(),
+            repo.submodules(),
         ]);
 
         const branches = refs
@@ -95,6 +99,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
             operation,
             branches,
             stashes,
+            worktrees,
+            submodules,
         };
     }
 
@@ -169,6 +175,49 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
             case 'abortOperation':
                 await vscode.commands.executeCommand(
                     'gitKiller.abortOperation',
+                    this.manager.getActive()?.root
+                );
+                break;
+            case 'worktreeAdd':
+                await vscode.commands.executeCommand(
+                    'gitKiller.worktreeAdd',
+                    this.manager.getActive()?.root
+                );
+                break;
+            case 'worktreeOpen':
+                await vscode.commands.executeCommand('gitKiller.worktreeOpen', message.path);
+                break;
+            case 'worktreeRemove':
+                await vscode.commands.executeCommand(
+                    'gitKiller.worktreeRemove',
+                    message.path,
+                    this.manager.getActive()?.root
+                );
+                break;
+            case 'worktreePrune':
+                await vscode.commands.executeCommand(
+                    'gitKiller.worktreePrune',
+                    this.manager.getActive()?.root
+                );
+                break;
+            case 'submoduleUpdate':
+                await vscode.commands.executeCommand(
+                    'gitKiller.submoduleUpdate',
+                    message.path,
+                    this.manager.getActive()?.root
+                );
+                break;
+            case 'submoduleSync':
+                await vscode.commands.executeCommand(
+                    'gitKiller.submoduleSync',
+                    message.path,
+                    this.manager.getActive()?.root
+                );
+                break;
+            case 'openSubmoduleGraph':
+                await vscode.commands.executeCommand(
+                    'gitKiller.submoduleGraph',
+                    message.path,
                     this.manager.getActive()?.root
                 );
                 break;

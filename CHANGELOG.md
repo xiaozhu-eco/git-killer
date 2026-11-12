@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0
+
+- The repository panel now lives in the built-in **Source Control** view container instead of
+  a separate activity bar entry, so it sits next to the native Changes view.
+- Sidebar: new **Worktrees** section that lists every checkout, opens another worktree in a
+  new window, adds a worktree on an existing or new branch, removes it (with a force fallback)
+  and prunes stale entries.
+- Sidebar: new **Submodules** section showing per-submodule state (up to date, new commits,
+  not initialized, conflict), with update-one, update-all and URL sync actions.
+- Click a submodule in the sidebar to switch the commit graph to it; the open graph tab is
+  reused and the submodule is registered as a repository you can switch back from.
+- New commands: `Add Worktree...`, `Open Worktree`, `Remove Worktree...`, `Prune Worktrees`,
+  `Update Submodules`, `Sync Submodule URLs`, `Open Submodule Graph...`.
+
 ## 0.2.0
 
 - Commit graph rendering: edges are anchored to the row top / commit dot / row bottom, so lanes

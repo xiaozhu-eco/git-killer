@@ -1,9 +1,11 @@
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { GitContentProvider } from './contentProvider';
 import { BlameController } from './editor/blame';
 import { showFileHistory, showLineHistory } from './editor/history';
 import * as ops from './git/operations';
 import type { GitRepository } from './git/repository';
+import { runGit } from './git/executor';
 import { RepositoryManager } from './git/repositoryManager';
 import { GraphPanel, type GraphPanelDeps } from './graph/graphPanel';
 import { confirmDestructive, relativeTime, showGitError, withProgress } from './output';
@@ -563,6 +565,187 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             return;
         }
         await run(`Aborting ${operation.kind}`, repo, () => ops.abortOperation(repo, operation.kind));
+    });
+
+    register('gitKiller.worktreeAdd', async (root?: unknown) => {
+        const repo = await requireRepo(typeof root === 'string' ? root : undefined);
+        if (!repo) {
+            return;
+        }
+
+        const worktrees = await repo.worktrees();
+        const checkedOut = new Set(
+            worktrees.map(worktree => worktree.branch).filter((branch): branch is string => Boolean(branch))
+        );
+        const refs = (await repo.branchRefs()).filter(
+            ref => ref.type === 'local' && !checkedOut.has(ref.shortName)
+        );
+
+        type WorktreePick = vscode.QuickPickItem & { branch?: string; create?: boolean };
+        const items: WorktreePick[] = refs.map(ref => ({
+            label: `$(git-branch) ${ref.shortName}`,
+            description: ref.ahead || ref.behind ? `↑${ref.ahead ?? 0} ↓${ref.behind ?? 0}` : undefined,
+            branch: ref.shortName,
+        }));
+        items.push({ label: '$(plus) New branch…', create: true });
+
+        const picked = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Check out which branch in the new worktree?',
+            matchOnDescription: true,
+        });
+        if (!picked) {
+            return;
+        }
+
+        let branch = picked.branch;
+        if (picked.create) {
+            const name = await vscode.window.showInputBox({
+                prompt: 'Branch to create in the new worktree',
+                placeHolder: 'feature/my-worktree',
+                validateInput: value => (value.trim().length === 0 ? 'Branch name is required' : undefined),
+            });
+            if (!name?.trim()) {
+                return;
+            }
+            branch = name.trim();
+        }
+        if (!branch) {
+            return;
+        }
+
+        const slug = branch.replace(/[\\/]+/g, '-');
+        const suggested = path.join(path.dirname(repo.root), `${path.basename(repo.root)}-${slug}`);
+        const target = await vscode.window.showInputBox({
+            prompt: `Path for the worktree checked out at ${branch}`,
+            value: suggested,
+            validateInput: value => (value.trim().length === 0 ? 'A path is required' : undefined),
+        });
+        if (!target?.trim()) {
+            return;
+        }
+
+        await run(`Add worktree ${branch}`, repo, () =>
+            ops.worktreeAdd(repo, target.trim(), picked.create ? { branch } : { ref: branch })
+        );
+    });
+
+    register('gitKiller.worktreeOpen', async (target?: unknown) => {
+        if (typeof target !== 'string' || target.length === 0) {
+            return;
+        }
+        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(target), {
+            forceNewWindow: true,
+        });
+    });
+
+    register('gitKiller.worktreeRemove', async (target?: unknown, root?: unknown) => {
+        const repo = await requireRepo(typeof root === 'string' ? root : undefined);
+        if (!repo || typeof target !== 'string' || target.length === 0) {
+            return;
+        }
+        if (
+            !(await confirmDestructive(
+                'Remove worktree?',
+                `${target}\n\ngit worktree remove ${target}`
+            ))
+        ) {
+            return;
+        }
+        try {
+            await withProgress('Removing worktree', () => ops.worktreeRemove(repo, target));
+            afterMutation(repo);
+            void vscode.window.setStatusBarMessage('$(check) Worktree removed', 2000);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            const force = await vscode.window.showWarningMessage(
+                message,
+                { modal: true, detail: 'The worktree has changes or untracked files. Remove it anyway?' },
+                'Force remove'
+            );
+            if (force === 'Force remove') {
+                await run('Force removing worktree', repo, () => ops.worktreeRemove(repo, target, true));
+            }
+        }
+    });
+
+    register('gitKiller.worktreePrune', async (root?: unknown) => {
+        const repo = await requireRepo(typeof root === 'string' ? root : undefined);
+        if (!repo) {
+            return;
+        }
+        await run('Pruning worktrees', repo, () => ops.worktreePrune(repo));
+    });
+
+    register('gitKiller.submoduleUpdate', async (subPath?: unknown, root?: unknown) => {
+        const repo = await requireRepo(typeof root === 'string' ? root : undefined);
+        if (!repo) {
+            return;
+        }
+        const target = typeof subPath === 'string' && subPath.length > 0 ? subPath : undefined;
+        await run(target ? `Update submodule ${target}` : 'Update submodules', repo, () =>
+            ops.submoduleUpdate(repo, target)
+        );
+    });
+
+    register('gitKiller.submoduleSync', async (subPath?: unknown, root?: unknown) => {
+        const repo = await requireRepo(typeof root === 'string' ? root : undefined);
+        if (!repo) {
+            return;
+        }
+        const target = typeof subPath === 'string' && subPath.length > 0 ? subPath : undefined;
+        await run(target ? `Sync submodule ${target}` : 'Sync submodule URLs', repo, () =>
+            ops.submoduleSync(repo, target)
+        );
+    });
+
+    register('gitKiller.submoduleGraph', async (target?: unknown, root?: unknown) => {
+        let subTarget = typeof target === 'string' && target.length > 0 ? target : undefined;
+        if (!subTarget) {
+            const repo = await requireRepo(typeof root === 'string' ? root : undefined);
+            if (!repo) {
+                return;
+            }
+            const submodules = await repo.submodules();
+            if (submodules.length === 0) {
+                void vscode.window.showInformationMessage('This repository has no submodules.');
+                return;
+            }
+            const picked = await vscode.window.showQuickPick(
+                submodules.map(submodule => ({
+                    label: `$(repo) ${submodule.path}`,
+                    description:
+                        submodule.state === 'uninitialized'
+                            ? 'not initialized'
+                            : submodule.describe ?? 'initialized',
+                    target: submodule.absolutePath,
+                })),
+                { placeHolder: 'Open the commit graph of which submodule?' }
+            );
+            if (!picked) {
+                return;
+            }
+            subTarget = picked.target;
+        }
+
+        let subRoot: string;
+        try {
+            subRoot = (
+                await runGit(['rev-parse', '--show-toplevel'], { cwd: subTarget, readOnly: true })
+            ).trim();
+        } catch {
+            void vscode.window.showErrorMessage(
+                'This submodule is not initialized. Run Init on it first.'
+            );
+            return;
+        }
+        if (!subRoot) {
+            void vscode.window.showErrorMessage('Unable to resolve the submodule repository.');
+            return;
+        }
+
+        const subRepo = manager.getByRoot(subRoot) ?? manager.addRepo(subRoot);
+        manager.setActive(subRepo.root);
+        GraphPanel.openFor(deps, subRepo.root);
     });
 
     register('gitKiller.copySha', async (sha?: unknown) => {

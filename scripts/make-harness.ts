@@ -4,17 +4,17 @@ import type { CommitDetails, FileChange, GraphRow, RefSummary, RepoState } from 
 import { computeLayout } from '../src/graph/laneLayout';
 
 interface Node {
-    sha: string;
-    parents: string[];
-    subject: string;
-    author: string;
+  sha: string;
+  parents: string[];
+  subject: string;
+  author: string;
 }
 
 const nodes: Node[] = [];
 const authors = ['Alice Chen', 'Bob Martin', 'Carol Diaz', 'Dan Wu', 'Eve Novak'];
 
 function add(sha: string, parents: string[], subject: string, index: number): void {
-    nodes.push({ sha, parents, subject, author: authors[index % authors.length] });
+  nodes.push({ sha, parents, subject, author: authors[index % authors.length] });
 }
 
 // Newest first, topological order.
@@ -43,9 +43,9 @@ add('root', [], 'Initial commit', 0);
 const layout = computeLayout(nodes);
 const refMap = new Map<string, RefSummary[]>();
 const ref = (sha: string, shortName: string, type: RefSummary['type'], name = shortName): void => {
-    const list = refMap.get(sha) ?? [];
-    list.push({ name, shortName, type, sha });
-    refMap.set(sha, list);
+  const list = refMap.get(sha) ?? [];
+  list.push({ name, shortName, type, sha });
+  refMap.set(sha, list);
 };
 ref('n3', 'main', 'local', 'refs/heads/main');
 ref('n3', 'origin/main', 'remote', 'refs/remotes/origin/main');
@@ -57,66 +57,66 @@ ref('c8', 'v0.0.9', 'tag', 'refs/tags/v0.0.9');
 
 const now = Math.floor(Date.now() / 1000);
 const rows: GraphRow[] = nodes.map((node, index) => ({
-    sha: node.sha,
-    parents: node.parents,
-    subject: node.subject,
-    author: node.author,
-    authorEmail: `${node.author.split(' ')[0].toLowerCase()}@example.com`,
-    authorTime: now - index * 5400 - 600,
-    refs: refMap.get(node.sha) ?? [],
-    isHead: node.sha === 'n3',
-    lane: layout[index].lane,
-    color: layout[index].color,
-    edges: layout[index].edges,
-    laneCount: layout[index].laneCount,
+  sha: node.sha,
+  parents: node.parents,
+  subject: node.subject,
+  author: node.author,
+  authorEmail: `${node.author.split(' ')[0].toLowerCase()}@example.com`,
+  authorTime: now - index * 5400 - 600,
+  refs: refMap.get(node.sha) ?? [],
+  isHead: node.sha === 'n3',
+  lane: layout[index].lane,
+  color: layout[index].color,
+  edges: layout[index].edges,
+  laneCount: layout[index].laneCount,
 }));
 
 const files: FileChange[] = [
-    { path: 'src/graph/graphPanel.ts', status: 'M', additions: 42, deletions: 7, binary: false },
-    { path: 'webview/src/components/GraphList.tsx', status: 'M', additions: 88, deletions: 12, binary: false },
-    { path: 'webview/src/styles.css', status: 'M', additions: 30, deletions: 3, binary: false },
-    { path: 'media/icon.png', status: 'A', additions: 0, deletions: 0, binary: true },
+  { path: 'src/graph/graphPanel.ts', status: 'M', additions: 42, deletions: 7, binary: false },
+  { path: 'webview/src/components/GraphList.tsx', status: 'M', additions: 88, deletions: 12, binary: false },
+  { path: 'webview/src/styles.css', status: 'M', additions: 30, deletions: 3, binary: false },
+  { path: 'media/icon.png', status: 'A', additions: 0, deletions: 0, binary: true },
 ];
 
 const details: CommitDetails = {
-    sha: 'n1' + '0'.repeat(38),
-    parents: ['m2' + '0'.repeat(38)],
-    author: 'Carol Diaz',
-    authorEmail: 'carol@example.com',
-    authorTime: now - 3 * 5400,
-    committer: 'Carol Diaz',
-    committerEmail: 'carol@example.com',
-    committerTime: now - 3 * 5400,
-    refs: [],
-    subject: 'Introduce commit details pane',
-    body: 'Introduce commit details pane\n\nShow message, author, parents and changed files in a side pane.\nCtrl/Cmd-click a second commit to compare.',
-    files,
+  sha: 'n1' + '0'.repeat(38),
+  parents: ['m2' + '0'.repeat(38)],
+  author: 'Carol Diaz',
+  authorEmail: 'carol@example.com',
+  authorTime: now - 3 * 5400,
+  committer: 'Carol Diaz',
+  committerEmail: 'carol@example.com',
+  committerTime: now - 3 * 5400,
+  refs: [],
+  subject: 'Introduce commit details pane',
+  body: 'Introduce commit details pane\n\nShow message, author, parents and changed files in a side pane.\nCtrl/Cmd-click a second commit to compare.',
+  files,
 };
 
 const state: RepoState = {
-    root: '/tmp/demo-repo',
-    name: 'demo-repo',
-    head: { sha: 'n3', branch: 'main', detached: false },
-    status: {
-        branch: 'main',
-        upstream: 'origin/main',
-        ahead: 2,
-        behind: 1,
-        staged: 1,
-        unstaged: 2,
-        untracked: 1,
-        conflicted: 0,
-    },
-    rows,
-    hasMore: true,
-    filter: { scope: 'all', text: '' },
-    operation: null,
-    ui: { rowHeight: 24, laneWidth: 14 },
+  root: '/tmp/demo-repo',
+  name: 'demo-repo',
+  head: { sha: 'n3', branch: 'main', detached: false },
+  status: {
+    branch: 'main',
+    upstream: 'origin/main',
+    ahead: 2,
+    behind: 1,
+    staged: 1,
+    unstaged: 2,
+    untracked: 1,
+    conflicted: 0,
+  },
+  rows,
+  hasMore: true,
+  filter: { scope: 'all', text: '' },
+  operation: null,
+  ui: { rowHeight: 24, laneWidth: 14 },
 };
 
 const repos = [
-    { root: '/tmp/demo-repo', name: 'demo-repo' },
-    { root: '/tmp/other-repo', name: 'other-repo' },
+  { root: '/tmp/demo-repo', name: 'demo-repo' },
+  { root: '/tmp/other-repo', name: 'other-repo' },
 ];
 
 const safe = (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c');
@@ -217,31 +217,41 @@ fs.writeFileSync(output, html, 'utf8');
 console.log(`wrote ${output}`);
 
 const sidebarState = {
-    repos: [
-        { root: '/Users/geocat/Codes/git-killer', name: 'git-killer' },
-        { root: '/Users/geocat/Codes/design-system', name: 'design-system' },
-    ],
-    active: '/Users/geocat/Codes/git-killer',
-    branch: 'main',
-    upstream: 'origin/main',
-    detached: false,
-    ahead: 2,
-    behind: 1,
-    staged: 1,
-    unstaged: 2,
-    untracked: 0,
-    conflicted: 0,
-    operation: null,
-    branches: [
-        { name: 'refs/heads/main', shortName: 'main', type: 'local', sha: 'a', upstream: 'origin/main', ahead: 2, behind: 1, date: 4 },
-        { name: 'refs/heads/feature/sidebar-polish', shortName: 'feature/sidebar-polish', type: 'local', sha: 'b', ahead: 0, behind: 0, date: 3 },
-        { name: 'refs/heads/fix/lane-layout', shortName: 'fix/lane-layout', type: 'local', sha: 'c', ahead: 1, behind: 0, date: 2 },
-        { name: 'refs/heads/chore/release-0.1', shortName: 'chore/release-0.1', type: 'local', sha: 'd', ahead: 0, behind: 3, date: 1 },
-    ],
-    stashes: [
-        'stash@{0}: WIP on main: 1a2b3c4 Polish toolbar layout',
-        'stash@{1}: On feature/sidebar-polish: experiment with compact stats',
-    ],
+  repos: [
+    { root: '/Users/geocat/Codes/git-killer', name: 'git-killer' },
+    { root: '/Users/geocat/Codes/design-system', name: 'design-system' },
+  ],
+  active: '/Users/geocat/Codes/git-killer',
+  branch: 'main',
+  upstream: 'origin/main',
+  detached: false,
+  ahead: 2,
+  behind: 1,
+  staged: 1,
+  unstaged: 2,
+  untracked: 0,
+  conflicted: 0,
+  operation: null,
+  branches: [
+    { name: 'refs/heads/main', shortName: 'main', type: 'local', sha: 'a', upstream: 'origin/main', ahead: 2, behind: 1, date: 4 },
+    { name: 'refs/heads/feature/sidebar-polish', shortName: 'feature/sidebar-polish', type: 'local', sha: 'b', ahead: 0, behind: 0, date: 3 },
+    { name: 'refs/heads/fix/lane-layout', shortName: 'fix/lane-layout', type: 'local', sha: 'c', ahead: 1, behind: 0, date: 2 },
+    { name: 'refs/heads/chore/release-0.1', shortName: 'chore/release-0.1', type: 'local', sha: 'd', ahead: 0, behind: 3, date: 1 },
+  ],
+  stashes: [
+    'stash@{0}: WIP on main: 1a2b3c4 Polish toolbar layout',
+    'stash@{1}: On feature/sidebar-polish: experiment with compact stats',
+  ],
+  worktrees: [
+    { path: '/Users/geocat/Codes/git-killer', head: 'a1b2c3d4e5f6', branch: 'main', bare: false, detached: false, locked: false, prunable: false, isCurrent: true },
+    { path: '/Users/geocat/Codes/git-killer-fix-lane-layout', head: 'c7d8e9f0a1b2', branch: 'fix/lane-layout', bare: false, detached: false, locked: false, prunable: false, isCurrent: false },
+    { path: '/Users/geocat/Codes/git-killer-release', head: 'e5f6a7b8c9d0', bare: false, detached: true, locked: false, prunable: true, isCurrent: false },
+  ],
+  submodules: [
+    { path: 'vendor/design-system', absolutePath: '/Users/geocat/Codes/git-killer/vendor/design-system', url: 'https://github.com/xiaozhu-eco/design-system.git', sha: 'abc1234', state: 'clean', describe: 'heads/main' },
+    { path: 'vendor/icons', absolutePath: '/Users/geocat/Codes/git-killer/vendor/icons', url: 'https://github.com/xiaozhu-eco/icons.git', sha: 'def5678', state: 'modified', describe: 'v1.2.0' },
+    { path: 'vendor/legacy', absolutePath: '/Users/geocat/Codes/git-killer/vendor/legacy', url: 'https://github.com/xiaozhu-eco/legacy.git', sha: '0123456', state: 'uninitialized' },
+  ],
 };
 
 const sidebarHtml = `<!DOCTYPE html>

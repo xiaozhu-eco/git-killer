@@ -262,3 +262,45 @@ export function IconArrowRight(props: IconProps) {
         </svg>
     );
 }
+
+export function IconWorktree(props: IconProps) {
+    return (
+        <svg {...base} {...props}>
+            <rect x="2.3" y="6.6" width="6.4" height="6.6" rx="1" />
+            <path d="M2.3 9.2h6.4" />
+            <path d="M11.4 9.4V4" />
+            <path d="M9.5 5.9 11.4 4l1.9 1.9" />
+        </svg>
+    );
+}
+
+export function IconSubmodule(props: IconProps) {
+    return (
+        <svg {...base} {...props}>
+            <rect x="2.4" y="4.2" width="11.2" height="9" rx="1.1" />
+            <path d="M2.4 7h11.2" />
+            <rect x="5.6" y="9" width="4.8" height="2.2" rx="0.5" />
+        </svg>
+    );
+}
+
+export function IconPrune(props: IconProps) {
+    return (
+        <svg {...base} {...props}>
+            <path d="M2.8 4.2h10.4" />
+            <path d="M5.2 4.2 6.3 13h3.4l1.1-8.8" />
+            <path d="M8 7h.01" />
+        </svg>
+    );
+}
+
+export function IconSync(props: IconProps) {
+    return (
+        <svg {...base} {...props}>
+            <path d="M12.6 6.6A4.9 4.9 0 0 0 3.7 4.9" />
+            <path d="M3.7 2.9v2.2h2.2" />
+            <path d="M3.4 9.4a4.9 4.9 0 0 0 8.9 1.7" />
+            <path d="M12.3 13.1v-2.2h-2.2" />
+        </svg>
+    );
+}
