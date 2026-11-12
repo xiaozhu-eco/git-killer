@@ -2,7 +2,7 @@
     "name": "git-killer",
     "displayName": "Git Killer",
     "description": "A commit-graph-centric Git client: browse, compare, blame and operate on Git from one graph.",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "publisher": "xiaozhu-studio",
     "license": "MIT",
     "icon": "media/icon.png",

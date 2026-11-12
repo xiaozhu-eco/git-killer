@@ -43,6 +43,8 @@ const FALLBACK_PALETTE = [
 
 type ColumnKey = 'refs' | 'author' | 'date' | 'sha';
 type ColumnWidths = Record<ColumnKey, number>;
+/** Boundaries between the visible columns; SHA has no divider to its right. */
+type DividerKey = 'refs' | 'subject' | 'author' | 'date';
 
 const DEFAULT_COLUMNS: ColumnWidths = { refs: 260, author: 150, date: 110, sha: 78 };
 const MIN_COLUMNS: ColumnWidths = { refs: 90, author: 60, date: 64, sha: 48 };
@@ -72,6 +74,26 @@ function readColumns(): ColumnWidths {
 function saveColumns(columns: ColumnWidths): void {
     const current = vscode.getState<GraphViewState>() ?? {};
     vscode.setState({ ...current, columns });
+}
+
+/**
+ * Moves a boundary between two fixed columns: the left column grows by `delta` while the
+ * right one shrinks, so the divider stays under the pointer instead of letting the elastic
+ * Description column absorb the change.
+ */
+function resizePair(
+    left: ColumnKey,
+    right: ColumnKey,
+    delta: number,
+    widths: ColumnWidths
+): ColumnWidths {
+    const lower = Math.max(MIN_COLUMNS[left] - widths[left], widths[right] - MAX_COLUMNS[right]);
+    const upper = Math.min(MAX_COLUMNS[left] - widths[left], widths[right] - MIN_COLUMNS[right]);
+    const applied = Math.max(lower, Math.min(upper, delta));
+    if (applied === 0) {
+        return widths;
+    }
+    return { ...widths, [left]: widths[left] + applied, [right]: widths[right] - applied };
 }
 
 /**
@@ -117,34 +139,64 @@ export function GraphList(props: GraphListProps) {
         saveColumns(columns);
     }, [columns]);
 
-    const resizeRef = useRef<{ key: ColumnKey; startX: number; startWidth: number } | null>(null);
+    const resizeRef = useRef<DividerKey | null>(null);
 
-    const nudgeColumn = useCallback((key: ColumnKey, delta: number) => {
+    const applyDelta = useCallback((divider: DividerKey, delta: number) => {
         setColumns(previous => {
-            const next = clampWidth(key, previous[key] + delta);
-            return next === previous[key] ? previous : { ...previous, [key]: next };
+            switch (divider) {
+                case 'refs':
+                    return { ...previous, refs: clampWidth('refs', previous.refs + delta) };
+                case 'subject':
+                    // The Description column absorbs the remaining space, so resizing its
+                    // right edge is the same as moving the Author column's left edge.
+                    return { ...previous, author: clampWidth('author', previous.author - delta) };
+                case 'author':
+                    return resizePair('author', 'date', delta, previous);
+                case 'date':
+                    return resizePair('date', 'sha', delta, previous);
+                default:
+                    return previous;
+            }
+        });
+    }, []);
+
+    const resetDivider = useCallback((divider: DividerKey) => {
+        setColumns(previous => {
+            switch (divider) {
+                case 'refs':
+                    return { ...previous, refs: DEFAULT_COLUMNS.refs };
+                case 'subject':
+                    return { ...previous, author: DEFAULT_COLUMNS.author };
+                case 'author':
+                    return { ...previous, author: DEFAULT_COLUMNS.author, date: DEFAULT_COLUMNS.date };
+                case 'date':
+                    return { ...previous, date: DEFAULT_COLUMNS.date, sha: DEFAULT_COLUMNS.sha };
+                default:
+                    return previous;
+            }
         });
     }, []);
 
     const beginResize = useCallback(
-        (key: ColumnKey) => (event: ReactPointerEvent<HTMLSpanElement>) => {
+        (divider: DividerKey) => (event: ReactPointerEvent<HTMLSpanElement>) => {
             if (event.button !== 0) {
                 return;
             }
             event.preventDefault();
             event.stopPropagation();
-            const startX = event.clientX;
-            const startWidth = columns[key];
-            resizeRef.current = { key, startX, startWidth };
+            resizeRef.current = divider;
+            let lastX = event.clientX;
             document.body.classList.add('col-resizing');
 
             const onMove = (moveEvent: PointerEvent) => {
-                const drag = resizeRef.current;
-                if (!drag || drag.key !== key) {
+                if (resizeRef.current !== divider) {
                     return;
                 }
-                const next = clampWidth(key, drag.startWidth + moveEvent.clientX - drag.startX);
-                setColumns(previous => (previous[key] === next ? previous : { ...previous, [key]: next }));
+                const delta = moveEvent.clientX - lastX;
+                if (delta !== 0) {
+                    lastX = moveEvent.clientX;
+                    applyDelta(divider, delta);
+                }
             };
             const stop = () => {
                 resizeRef.current = null;
@@ -157,39 +209,32 @@ export function GraphList(props: GraphListProps) {
             window.addEventListener('pointerup', stop);
             window.addEventListener('pointercancel', stop);
         },
-        [columns]
+        [applyDelta]
     );
 
-    const resetColumn = useCallback((key: ColumnKey) => {
-        setColumns(previous => ({ ...previous, [key]: DEFAULT_COLUMNS[key] }));
-    }, []);
-
-    const headerCell = useCallback(
-        (key: ColumnKey, label: string) => (
-            <span className="header-cell">
-                <span className="header-label">{label}</span>
-                <span
-                    className="col-resizer"
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label={`Resize ${label} column`}
-                    tabIndex={0}
-                    title="Drag to resize · double-click to reset"
-                    onPointerDown={beginResize(key)}
-                    onDoubleClick={() => resetColumn(key)}
-                    onKeyDown={event => {
-                        if (event.key === 'ArrowLeft') {
-                            event.preventDefault();
-                            nudgeColumn(key, event.shiftKey ? -24 : -8);
-                        } else if (event.key === 'ArrowRight') {
-                            event.preventDefault();
-                            nudgeColumn(key, event.shiftKey ? 24 : 8);
-                        }
-                    }}
-                />
-            </span>
+    const divider = useCallback(
+        (key: DividerKey, label: string) => (
+            <span
+                className="col-resizer"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={`Resize the ${label} boundary`}
+                tabIndex={0}
+                title="Drag to resize · double-click to reset"
+                onPointerDown={beginResize(key)}
+                onDoubleClick={() => resetDivider(key)}
+                onKeyDown={event => {
+                    if (event.key === 'ArrowLeft') {
+                        event.preventDefault();
+                        applyDelta(key, event.shiftKey ? -24 : -8);
+                    } else if (event.key === 'ArrowRight') {
+                        event.preventDefault();
+                        applyDelta(key, event.shiftKey ? 24 : 8);
+                    }
+                }}
+            />
         ),
-        [beginResize, nudgeColumn, resetColumn]
+        [applyDelta, beginResize, resetDivider]
     );
 
     const selectedSet = useMemo(() => new Set(selected), [selected]);
@@ -423,13 +468,25 @@ export function GraphList(props: GraphListProps) {
                     className="header-inner"
                     style={{ paddingLeft: graphWidth + 10, paddingRight: 10 + viewport.scrollbar }}
                 >
-                    {headerCell('refs', 'Refs')}
+                    <span className="header-cell">
+                        <span className="header-label">Refs</span>
+                        {divider('refs', 'Refs / Description')}
+                    </span>
                     <span className="header-cell">
                         <span className="header-label">Description</span>
+                        {divider('subject', 'Description / Author')}
                     </span>
-                    {headerCell('author', 'Author')}
-                    {headerCell('date', 'Date')}
-                    {headerCell('sha', 'SHA')}
+                    <span className="header-cell">
+                        <span className="header-label">Author</span>
+                        {divider('author', 'Author / Date')}
+                    </span>
+                    <span className="header-cell">
+                        <span className="header-label">Date</span>
+                        {divider('date', 'Date / SHA')}
+                    </span>
+                    <span className="header-cell">
+                        <span className="header-label">SHA</span>
+                    </span>
                 </div>
             </div>
             <canvas className="lanes" ref={canvasRef} />

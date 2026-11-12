@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1
+
+- Fix column resizing: dragging a header divider now moves that boundary and adjusts the two
+  columns it separates, so the divider stays under the pointer instead of letting the flexible
+  Description column absorb the change.
+- Resizing stops cleanly at the minimum/maximum column widths, and double-clicking a divider
+  resets the adjacent columns.
+
 ## 0.4.0
 
 - The commit list now has a sticky column header (Refs, Description, Author, Date, SHA) and
